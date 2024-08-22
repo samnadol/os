@@ -1,0 +1,297 @@
+#include "dns.h"
+
+#include "../l2/udp.h"
+#include "../../../lib/string.h"
+#include "../../../lib/arpa/inet.h"
+#include "../../../hw/mem.h"
+#include "../../../hw/timer.h"
+
+size_t dns_id;
+
+#define DNS_PORT 33242
+#define DNS_CACHE_SIZE 32
+
+dns_answer *dns_cache;
+
+bool dns_send_query(network_device *netdev, uint32_t dns_server_ip, const char *domain_name, int type)
+{
+    dns_header *packet = (dns_header *)calloc(sizeof(dns_header) + 1 + strlen(domain_name) + 1 + sizeof(dns_query));
+    packet->transaction_id = htons(dns_id++);
+
+    packet->flags.qr = DNS_MESSAGE_QUERY;
+    packet->flags.opcode = DNS_OPCODE_QUERY;
+    packet->flags.aa = 0;
+    packet->flags.tc = 0;
+    packet->flags.rd = 1;
+    packet->flags.ra = 0;
+    packet->flags.z = 0;
+    packet->flags.rcode = 0;
+    packet->flags.raw = htons(packet->flags.raw);
+
+    packet->num_questions = htons(1);
+    packet->num_answers = htons(0);
+    packet->num_auth_rrs = htons(0);
+    packet->num_add_rrs = htons(0);
+
+    for (int i = 0; i < strlen(domain_name); i++)
+    {
+        ((uint8_t *)packet + sizeof(dns_header) + 1)[i] = domain_name[i];
+    }
+
+    uint8_t *domain_ptr = (uint8_t *)packet + sizeof(dns_header);
+    for (int i = 0, len = 0; i <= strlen(domain_name); i++, len++)
+    {
+        if (i == strlen(domain_name) || domain_name[i] == '.')
+        {
+            *domain_ptr = len;
+            domain_ptr += len + 1;
+            len = -1;
+        }
+    }
+
+    dns_query *query = (dns_query *)((uint8_t *)packet + 1 + sizeof(dns_header) + strlen(domain_name) + 1);
+    query->type = htons(type);
+    query->class = htons(DNS_CLASS_IN);
+
+    dprintf("[DNS] sent query for domain %s\n", domain_name);
+
+    bool res = udp_send_packet(netdev, netdev->ip_c.ip, DNS_PORT, dns_server_ip, 53, packet, sizeof(dns_header) + 1 + strlen(domain_name) + 1 + 4);
+    mfree(packet);
+    return res;
+}
+
+size_t dns_response_read_domain(uint8_t *data, size_t start_offset, uint8_t **buffer)
+{
+    bool physical_len_done = false;
+    size_t physical_len = 0;
+    size_t string_len = 0;
+    size_t i = start_offset;
+
+    while (data[i] != '\0')
+    {
+        if ((((data[i] << 8) | data[i + i]) & 0xC000) != 0)
+        {
+            if (!physical_len_done)
+                physical_len += 1;
+            physical_len_done = true;
+            i = (((data[i] << 8) | data[i + 1]) & 0x3FFF) - sizeof(dns_header);
+        }
+        else
+        {
+            if (!physical_len_done)
+                physical_len += data[i] + 1;
+            string_len += data[i] + 1;
+            i += data[i] + 1;
+        }
+    }
+
+    *buffer = (uint8_t *)calloc(string_len);
+    i = start_offset;
+
+    size_t str_pos = 0;
+    while (data[i] != '\0')
+    {
+        if ((((data[i] << 8) | data[i + i]) & 0xC000) != 0)
+            i = (((data[i] << 8) | data[i + 1]) & 0x3FFF) - sizeof(dns_header);
+        else
+        {
+            for (int j = 1; j < data[i] + 1; j++)
+                (*buffer)[str_pos++] = data[i + j];
+            (*buffer)[str_pos++] = '.';
+            i += data[i] + 1;
+        }
+    }
+    (*buffer)[string_len - 1] = 0;
+
+    return physical_len;
+}
+
+void dns_handle_response(network_device *dev, dns_header *header, size_t data_len)
+{
+    dprintf("[DNS] got response, num q: %d, num a: %d\n", header->num_questions, header->num_answers);
+
+    if (header->flags.rcode != DNS_RCODE_NO_ERROR)
+        return;
+
+    uint8_t *qna = (uint8_t *)calloc(data_len + 1);
+    memcpy(qna, (uint8_t *)header + sizeof(dns_header), data_len);
+
+    size_t i = 0;
+    for (size_t current_question = 0; current_question < header->num_questions; current_question++)
+    {
+        uint8_t *domain = 0;
+        i += dns_response_read_domain(qna, i, &domain) + 1;
+
+        // uint16_t type = (qna[i] << 8) | (qna[i + 1]);
+        // i += 2;
+        // uint16_t class = (qna[i] << 8) | (qna[i + 1]);
+        // i += 2;
+        i += 4;
+    }
+    for (size_t current_answer = 0; current_answer < header->num_answers; current_answer++)
+    {
+        uint8_t *domain = 0;
+        i += dns_response_read_domain(qna, i, &domain) + 1;
+
+        dns_answer *ans = (dns_answer *)calloc(sizeof(dns_answer));
+        memcpy(ans, qna + i, 10);
+        i += 10;
+
+        ans->type = ntohs(ans->type);
+        ans->class = ntohs(ans->class);
+        ans->ttl = ntohl(ans->ttl);
+        ans->len = ntohs(ans->len);
+
+        ans->data = (uint8_t *)calloc(ans->len);
+        switch (ans->type)
+        {
+        case DNS_TYPE_A:
+            memcpy(ans->data, qna + i, ans->len);
+            break;
+        case DNS_TYPE_CNAME:
+            dns_response_read_domain(qna, i, &(ans->data));
+            break;
+        }
+        i += ans->len;
+
+        ans->domain = (char *)domain;
+        ans->poweron_epoch_timestamp = timer_get_epoch();
+        ans->next = 0;
+
+        switch (ans->type)
+        {
+        case DNS_TYPE_A:
+            dprintf("[DNS] got     A response for %s: %d.%d.%d.%d type: %x class: %x ttl: %d\n", ans->domain, ans->data[0], ans->data[1], ans->data[2], ans->data[3], ans->type, ans->class, ans->ttl);
+            break;
+        case DNS_TYPE_CNAME:
+            dprintf("[DNS] got CNAME response for %s: %s type: %x class: %x ttl: %d\n", ans->domain, ans->data, ans->type, ans->class, ans->ttl);
+            break;
+        }
+
+        if (!dns_cache)
+        {
+            dns_cache = ans;
+        }
+        else
+        {
+            dns_answer *current = dns_cache;
+            while (current->next)
+                current = current->next;
+            ans->prev = current;
+            current->next = ans;
+        }
+    }
+    mfree(qna);
+}
+
+void dns_udp_listener(network_device *netdev, void *data, size_t data_size)
+{
+    dns_header *header = (dns_header *)data;
+    header->transaction_id = ntohs(header->transaction_id);
+    header->flags.raw = ntohs(header->flags.raw);
+    header->num_questions = ntohs(header->num_questions);
+    header->num_answers = ntohs(header->num_answers);
+    header->num_auth_rrs = ntohs(header->num_auth_rrs);
+    header->num_add_rrs = ntohs(header->num_add_rrs);
+
+    if (header->flags.qr != DNS_MESSAGE_RESPONSE)
+        return;
+
+    dns_handle_response(netdev, header, data_size);
+}
+
+void dns_print(tty_interface *tty)
+{
+    tprintf(tty, "Current DNS Cache:\n");
+
+    dns_answer *current = dns_cache;
+    while (current)
+    {
+        switch (current->type)
+        {
+        case DNS_TYPE_A:
+            tprintf(tty, "    A %s: %d.%d.%d.%d type: %x class: %x ttl: %d\n", current->domain, current->data[0], current->data[1], current->data[2], current->data[3], current->type, current->class, current->ttl);
+            break;
+        case DNS_TYPE_CNAME:
+            tprintf(tty, "CNAME %s: %s type: %x class: %x ttl: %d\n", current->domain, current->data, current->type, current->class, current->ttl);
+            break;
+        }
+        tprintf(tty, "\tcreated %d, expires %d, now %d\n", (uint32_t)current->poweron_epoch_timestamp, (uint32_t)(current->poweron_epoch_timestamp + current->ttl), (uint32_t)timer_get_epoch());
+        current = current->next;
+    }
+}
+
+dns_answer *dns_get_ip(network_device *netdev, uint32_t dns_server_ip, char *domain, size_t timeout)
+{
+    dns_answer *current = dns_cache;
+    while (current)
+    {
+        if (strcmp(current->domain, domain) == 0)
+        {
+            // domain matches, check ttl expiry
+            if ((uint32_t)(timer_get_epoch() - current->poweron_epoch_timestamp) > current->ttl)
+            {
+                // expired
+                dprintf("[DNS] %s in cache but expired, removing\n", domain);
+
+                if (current == dns_cache) // if first entry, then set first entry to next entry
+                    dns_cache = current->next;
+                else // if not first entry, then set previous entry's next to next
+                    current->prev->next = current->next;
+                current->next->prev = current->prev;
+
+                mfree(current->domain);
+                mfree(current);
+            }
+            else
+            {
+                dprintf("[DNS] in cache\n");
+                switch (current->type)
+                {
+                case DNS_TYPE_A:
+                    return current;
+                    break;
+                case DNS_TYPE_CNAME:
+                    return dns_get_ip(netdev, netdev->ip_c.dns, (char *)current->data, timeout);
+                    break;
+                }
+            }
+        }
+        current = current->next;
+    }
+
+    dprintf("[DNS] %s not in cache\n", domain);
+    if (!dns_send_query(netdev, dns_server_ip, domain, DNS_TYPE_A))
+        return 0;
+
+    for (size_t time = 0; time < timeout; time += 10)
+    {
+        timer_wait(10);
+
+        dns_answer *current = dns_cache;
+        while (current)
+        {
+            if (strcmp(current->domain, domain) == 0)
+            {
+                switch (current->type)
+                {
+                case DNS_TYPE_A:
+                    return current;
+                    break;
+                case DNS_TYPE_CNAME:
+                    return dns_get_ip(netdev, netdev->ip_c.dns, (char *)current->data, timeout);
+                    break;
+                }
+            }
+            current = current->next;
+        }
+    }
+
+    return 0;
+}
+
+void dns_init()
+{
+    dns_id = 0x1;
+    udp_install_listener(DNS_PORT, dns_udp_listener);
+}
