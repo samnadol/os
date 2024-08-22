@@ -16,6 +16,13 @@ uint32_t frames;
 uint32_t fps;
 uint64_t frame_start_tick;
 
+struct mouse
+{
+    uint16_t mouse_x;
+    uint16_t mouse_y;
+};
+struct mouse *mouse = 0;
+
 struct pci_dev
 {
     uint16_t vendor;
@@ -24,8 +31,13 @@ struct pci_dev
 };
 struct pci_dev *pci_first = 0;
 
-char *buf;
+inline double clamp(double d, double min, double max)
+{
+    const double t = d < min ? min : d;
+    return t > max ? max : t;
+}
 
+char *buf;
 void gui_init()
 {
     buf = (char *)calloc(64);
@@ -35,6 +47,10 @@ void gui_init()
     sb = (uint8_t *)calloc(sb_size);
     if (!sb)
         dprintf("[GUI] failed to calloc screenbuffer\n");
+
+    mouse = (struct mouse *)calloc(sizeof(struct mouse));
+    mouse->mouse_x = 0;
+    mouse->mouse_y = 0;
 
     dprintf("[GUI] init (%dx%d, %d bit, fb @ 0x%x, size %f)\n", vga_info->vga_width, vga_info->vga_height, vga_info->vga_bits_per_pixel, vga_info->vga_address, sb_size);
 
@@ -74,6 +90,13 @@ void gui_set_pixel(uint16_t x, uint16_t y, uint16_t color)
     sb[(y * vga_info->vga_width) + x] = color;
 }
 
+void gui_rectangle(uint16_t tlx, uint16_t tly, uint16_t w, uint16_t h, uint16_t color)
+{
+    for (size_t x = tlx; x < tlx + w; x++)
+        for (size_t y = tly; y < tly + h; y++)
+            gui_set_pixel(clamp(x, 0, vga_info->vga_width - 1), clamp(y, 0, vga_info->vga_height - 1), color);
+}
+
 void gui_clear_screen(uint16_t color)
 {
     for (int x = 0; x < vga_info->vga_width; x++)
@@ -105,7 +128,7 @@ size_t gui_write(char *s, size_t len, uint16_t x, uint16_t y, uint16_t color)
         uint8_t *fc = font_get_char(s[cx]);
         if (!fc)
         {
-            printf("no font char for '%c' (ASCII %d)\n", s[cx], s[cx]);
+            dprintf("[GUI] no font char for '%c' (ASCII %d)\n", s[cx], s[cx]);
             continue;
         }
         width += gui_print_letter(fc, x + width, y, color);
@@ -113,33 +136,33 @@ size_t gui_write(char *s, size_t len, uint16_t x, uint16_t y, uint16_t color)
     return width;
 }
 
-// called by scheduler every 20ms
+uint16_t bgcolor = VGA_256_DARKBLUE;
 void gui_update()
 {
-    gui_clear_screen(VGA_256_DARKBLUE);
+    gui_clear_screen(bgcolor);
 
     mem_stats m = mem_get_stats();
     gui_write(buf, sprintf(buf, "os %f/%f, %dfps, uptime %t", m.used, m.total, fps, timer_get_epoch()), 5, 5, VGA_256_WHITE);
-    gui_write(buf, sprintf(buf, "%s", cpuinfo.vendor), 5, 20, VGA_256_WHITE);
-    gui_write(buf, sprintf(buf, "%s", cpuinfo.model), 5, 35, VGA_256_WHITE);
-    gui_write("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26, 140, 55, VGA_256_WHITE);
-    gui_write("abcdefghijklmnopqrstuvwxyz", 26, 140, 70, VGA_256_WHITE);
-    gui_write("01234567890 ():@+-/.,?", 21, 140, 85, VGA_256_WHITE);
+    // gui_write(buf, sprintf(buf, "%s", cpuinfo.vendor), 5, 20, VGA_256_WHITE);
+    // gui_write(buf, sprintf(buf, "%s", cpuinfo.model), 5, 35, VGA_256_WHITE);
+    // gui_write("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26, 140, 55, VGA_256_WHITE);
+    // gui_write("abcdefghijklmnopqrstuvwxyz", 26, 140, 70, VGA_256_WHITE);
+    // gui_write("01234567890 ():@+-/.,?", 21, 140, 85, VGA_256_WHITE);
 
-    gui_write("PCI Devices:", 12, 140, 115, VGA_256_WHITE);
-    size_t cy = 130, cx = 140;
-    struct pci_dev *current = pci_first;
-    while (current)
-    {
-        gui_write(buf, sprintf(buf, "%x:%x", current->vendor, current->device), cx, cy, VGA_256_WHITE);
-        if (cy > 160)
-        {
-            cy = 115;
-            cx += 60;
-        }
-        cy += 15;
-        current = current->next;
-    }
+    // gui_write("PCI Devices:", 12, 140, 115, VGA_256_WHITE);
+    // size_t cy = 130, cx = 140;
+    // struct pci_dev *current = pci_first;
+    // while (current)
+    // {
+    //     gui_write(buf, sprintf(buf, "%x:%x", current->vendor, current->device), cx, cy, VGA_256_WHITE);
+    //     if (cy > 160)
+    //     {
+    //         cy = 115;
+    //         cx += 60;
+    //     }
+    //     cy += 15;
+    //     current = current->next;
+    // }
 
     frames++;
     if (timer_get_tick() - frame_start_tick > TIMER_HZ)
@@ -149,18 +172,38 @@ void gui_update()
         frames = 0;
     }
 
-    for (int r = 0; r < 8; r++)
-        for (int c = 0; c < 0x8; c++)
-            for (int x = 0; x < 15; x++)
-                for (int y = 0; y < 15; y++)
-                    gui_set_pixel((c * 16) + x + 5, (r * 16) + y + 55, c + (r * 8));
+    // for (int r = 0; r < 8; r++)
+    //     for (int c = 0; c < 0x8; c++)
+    //         for (int x = 0; x < 15; x++)
+    //             for (int y = 0; y < 15; y++)
+    //                 gui_set_pixel((c * 16) + x + 5, (r * 16) + y + 55, c + (r * 8));
+
+    gui_rectangle(mouse->mouse_x, mouse->mouse_y, 2, 2, VGA_256_GOLD);
 
     memcpy(vga_info->vga_address, sb, sb_size);
 }
 
+void mouse_lc()
+{
+    printf("mouse lc at %d %d\n", mouse->mouse_x, mouse->mouse_y);
+
+    for (int r = 0; r < 8; r++)
+        for (int c = 0; c < 0x8; c++)
+            if (mouse->mouse_x > (c * 16) + 5 && (c * 16) + 15 + 5 > mouse->mouse_x)
+                if (mouse->mouse_y > (r * 16) + 55 && (r * 16) + 15 + 55 > mouse->mouse_y)
+                    bgcolor = c + (r * 8);
+}
+void mouse_rc()
+{
+    printf("mouse rc at %d %d\n", mouse->mouse_x, mouse->mouse_y);
+}
+void mouse_mc()
+{
+    printf("mouse mc at %d %d\n", mouse->mouse_x, mouse->mouse_y);
+}
+
 void gui_keypress(char c)
 {
-    gui_set_pixel(40, 40, c - 'A');
 }
 void gui_control(char c, bool shift)
 {
@@ -170,4 +213,20 @@ void gui_backspace()
 }
 void gui_enter()
 {
+}
+
+void gui_mouse(uint8_t data, int8_t dx, int8_t dy)
+{
+    if (mouse)
+    {
+        if (data & 0x1)
+            mouse_lc();
+        if (data & 0x2)
+            mouse_rc();
+        if (data & 0x4)
+            mouse_mc();
+
+        mouse->mouse_x = clamp(mouse->mouse_x + dx, 0, vga_info->vga_width);
+        mouse->mouse_y = clamp(mouse->mouse_y - dy, 0, vga_info->vga_height);
+    }
 }

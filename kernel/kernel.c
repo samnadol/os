@@ -1,4 +1,5 @@
 #include "drivers/keyboard.h"
+#include "drivers/mouse.h"
 #include "drivers/tty.h"
 #include "drivers/vga/vga.h"
 #include "drivers/serial.h"
@@ -76,7 +77,7 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 
 	status_init();
 	status_update();
-	vga_get_tty()->tty_out(TTYColor_WHITE, "\n");
+	vga_get_tty()->tty_print(TTYColor_WHITE, "\n");
 
 	dprintf("[MEM] using mem region %p - %p\n", biggest_mem_segment.start, biggest_mem_segment.start + biggest_mem_segment.len);
 
@@ -90,6 +91,7 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 
 	interrupts_enable();
 	keyboard_init();
+	mouse_init();
 	timer_init();
 
 	udp_init();

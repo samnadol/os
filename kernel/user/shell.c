@@ -276,7 +276,7 @@ bool shell_backspace(tty_interface *tty)
     if (len > 0)
     {
         tty->keybuffer[len - 1] = '\0';
-        tty->tty_del();
+        tty->tty_del_char();
         return true;
     }
     else

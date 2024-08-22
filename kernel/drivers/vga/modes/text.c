@@ -5,8 +5,6 @@
 #include "../../../hw/port.h"
 #include "../../../user/shell.h"
 
-tty_interface *tty;
-
 void vga_text_setc(char c, uint32_t offset, uint16_t color)
 {
 	uint8_t *vidmem = (uint8_t *)vga_info->vga_address;
@@ -98,8 +96,6 @@ size_t vga_text_write(TTYColor color, const char *s)
 
 void vga_text_init()
 {
-	tty = tty_add_interface(TTYType_VGA, vga_clear_screen, vga_delc, vga_write_string, vga_in, NULL);
-
 	vga_write_registers(mode_text_80x25);
 
 	vga_info = vga_get_info();
@@ -111,30 +107,20 @@ void vga_text_init()
 	vga_text_clear_screen();
 }
 
-void vga_text_deinit()
-{
-	tty = NULL;
-}
-
-tty_interface *vga_text_get_tty()
-{
-	return tty;
-}
-
 // keyboard
-void vga_text_add_key(char c)
+void vga_text_add_key(tty_interface *tty, char c)
 {
 	shell_add_key(tty, c);
 }
-bool vga_text_backspace()
+bool vga_text_backspace(tty_interface *tty)
 {
 	return shell_backspace(tty);
 }
-void vga_text_enter()
+void vga_text_enter(tty_interface *tty)
 {
 	shell_enter(tty);
 }
-void vga_text_control(char c, bool shift)
+void vga_text_control(tty_interface *tty, char c, bool shift)
 {
 	shell_control(tty, c, shift);
 }

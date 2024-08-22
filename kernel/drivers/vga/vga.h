@@ -84,5 +84,5 @@ void vga_delc();
 void vga_set_pixel(uint16_t x, uint16_t y, uint8_t color);
 
 // keyboard
-void vga_in(tty_interface *tty, char c);
+void vga_kb_in(tty_interface *tty, char c);
 tty_interface *vga_get_tty();

@@ -29,14 +29,14 @@ typedef struct tty_interface
     int interface_no;
     char keybuffer[256];
 
-    void (*tty_clear)();
-    void (*tty_del)();
-    size_t (*tty_out)(TTYColor color, const char *s);
-    void (*tty_in)(struct tty_interface *tty, char c);
+    void (*tty_clear_screen)();
+    void (*tty_del_char)();
+    size_t (*tty_print)(TTYColor color, const char *s);
+    void (*tty_kb_in)(struct tty_interface *tty, char c);
 } tty_interface;
 
 void tty_init();
-tty_interface *tty_add_interface(TTYType type, void (*tty_clear)(), void (*tty_del)(), size_t (*tty_out)(TTYColor color, const char *s), void (*tty_in)(tty_interface *tty, char c), void *device);
+tty_interface *tty_add_interface(TTYType type, void (*tty_clear_screen)(), void (*tty_del_char)(), size_t (*tty_print)(TTYColor color, const char *s), void (*tty_kb_in)(tty_interface *tty, char c), void *device);
 
 void tty_clear_screen(tty_interface *interface);
 size_t putc(tty_interface *interface, TTYColor color, char c);

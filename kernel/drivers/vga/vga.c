@@ -4,12 +4,16 @@
 #include "modes/gui.h"
 #include "../../hw/port.h"
 #include "../../hw/mem.h"
+#include "../../user/gui/gui.h"
 
 static VGAMode vga_mode;
+static tty_interface *tty;
 
 void vga_init(VGAMode mode)
 {
     vga_info = (VGAInfo *)calloc(sizeof(VGAInfo));
+    tty = tty_add_interface(TTYType_VGA, vga_clear_screen, vga_delc, vga_write_string, vga_kb_in, NULL);
+
     vga_mode = mode;
     if (vga_mode == VGA_TEXT)
         vga_text_init();
@@ -20,17 +24,10 @@ void vga_init(VGAMode mode)
 void vga_switch_mode(VGAMode mode)
 {
     vga_mode = mode;
-
     if (mode == VGA_TEXT)
-    {
         vga_text_init();
-        // vga_gui_deinit();
-    }
     if (mode == VGA_GUI)
-    {
         vga_gui_init();
-        vga_text_deinit();
-    }
 }
 
 void vga_write_registers(uint8_t *regs)
@@ -147,21 +144,33 @@ VGAInfo *vga_get_info()
     return vga_info;
 }
 
-void vga_in(tty_interface *tty, char c)
+void vga_kb_in(tty_interface *tty, char c)
 {
-    if (c == 0x7F || c == 0x08)
-        vga_text_backspace();
-    else if (c == 0xD)
-        vga_text_enter();
-    else if (c == 0x3)
-        vga_text_control('c', false);
-    else
-        vga_text_add_key(c);
+    if (vga_mode == VGA_TEXT)
+    {
+        if (c == 0x7F || c == 0x08)
+            vga_text_backspace(tty);
+        else if (c == 0xD)
+            vga_text_enter(tty);
+        else if (c == 0x3)
+            vga_text_control(tty, 'c', false);
+        else
+            vga_text_add_key(tty, c);
+    }
+    else if (vga_mode == VGA_GUI)
+    {
+        if (c == 0x7F || c == 0x08)
+            gui_backspace();
+        else if (c == 0xD)
+            gui_enter();
+        else if (c == 0x3)
+            gui_control('c', false);
+        else
+            gui_keypress(c);
+    }
 }
 
 tty_interface *vga_get_tty()
 {
-    if (vga_mode == VGA_TEXT)
-        return vga_text_get_tty();
-    return NULL;
+    return tty;
 }

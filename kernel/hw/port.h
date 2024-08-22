@@ -7,7 +7,8 @@
 #define PORT_VGA_CTRL 0x3D4
 #define PORT_VGA_DATA 0x3D5
 
-#define PORT_KB_DATA 0x60
+#define PORT_PS2_DATA 0x60
+#define PORT_PS2_CTRL 0x64
 
 #define PORT_PCI_CONF_ADDR 0xCF8
 #define PORT_PCI_CONF_DATA 0xCFC

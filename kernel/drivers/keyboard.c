@@ -26,22 +26,14 @@ const char scancode_ascii[] = {'?', '?', '1', '2', '3', '4', '5', '6',
 bool shift = false;
 bool ctrl = false;
 
-void keyboard_init()
-{
-    dprintf("[KB] Initializing\n");
-    irq_register(IRQ1, keyboard_callback);
-}
-
-void keyboard_callback(registers_t *regs)
-{
-    uint8_t scancode = inb(PORT_KB_DATA);
+void keyboard_handler(registers_t *regs)
+{    
+    uint8_t scancode = inb(PORT_PS2_DATA);
     tty_interface *vgatty = vga_get_tty();
 
     // ignore rctrl identifier
     if (scancode == 0xE0)
         return;
-
-    // printf("[KB] %x", scancode);
 
     if (scancode == 0x1D)
         ctrl = true;
@@ -52,20 +44,26 @@ void keyboard_callback(registers_t *regs)
     else if (scancode == 0xAA || scancode == 0xB6)
         shift = false;
     else if (ctrl && scancode == 0x2e)
-        vgatty->tty_in(vgatty, 0x3);
+        vgatty->tty_kb_in(vgatty, 0x3);
     else
     {
         switch (scancode)
         {
         case BACKSPACE:
-            vgatty->tty_in(vgatty, 0x8);
+            vgatty->tty_kb_in(vgatty, 0x8);
             break;
         case ENTER:
-            vgatty->tty_in(vgatty, 0xD);
+            vgatty->tty_kb_in(vgatty, 0xD);
             break;
         default:
             if (scancode <= 57)
-                vgatty->tty_in(vgatty, scancode_ascii[(int)scancode] - ((shift && char_is_small_letter(scancode_ascii[(int)scancode]) ? 32 : 0)));
+                vgatty->tty_kb_in(vgatty, scancode_ascii[(int)scancode] - ((shift && char_is_small_letter(scancode_ascii[(int)scancode]) ? 32 : 0)));
         }
     }
+}
+
+void keyboard_init()
+{
+    dprintf("[KB] Initializing\n");
+    irq_register(IRQ1, keyboard_handler);
 }

@@ -26,7 +26,7 @@ char com_in(com_device *dev)
 
 void com_int_handler(registers_t *r, com_device *dev, tty_interface *tty)
 {
-    tty->tty_in(tty, com_in(dev));
+    tty->tty_kb_in(tty, com_in(dev));
 }
 
 void com_int_enable(com_device *dev)

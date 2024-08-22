@@ -40,8 +40,6 @@ static uint8_t mode_text_80x25[] = {
 
 // initializes the screen
 void vga_text_init();
-void vga_text_deinit();
-tty_interface *vga_text_get_tty();
 
 void vga_text_clear_screen();
 
@@ -55,9 +53,9 @@ void vga_text_setc(char c, uint32_t offset, uint16_t color);
 uint32_t vga_text_get_offset(uint8_t col, uint8_t row);
 
 // keyboard
-void vga_text_add_key(char letter);
-bool vga_text_backspace();
-void vga_text_enter();
-void vga_text_control(char c, bool shift);
+void vga_text_add_key(tty_interface *tty, char c);
+bool vga_text_backspace(tty_interface *tty);
+void vga_text_enter(tty_interface *tty);
+void vga_text_control(tty_interface *tty, char c, bool shift);
 
 #endif

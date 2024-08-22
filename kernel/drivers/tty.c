@@ -20,7 +20,7 @@ void tty_init()
 
 void delc(tty_interface *tty)
 {
-    tty->tty_del();
+    tty->tty_del_char();
 }
 
 void tty_int_enable()
@@ -30,25 +30,25 @@ void tty_int_enable()
 
 void tty_clear_screen(tty_interface *tty)
 {
-    if (tty->tty_clear)
-        tty->tty_clear();
+    if (tty->tty_clear_screen)
+        tty->tty_clear_screen();
 }
 
-tty_interface *tty_add_interface(TTYType type, void (*tty_clear)(), void (*tty_del)(), size_t (*tty_out)(TTYColor color, const char *s), void (*tty_in)(tty_interface *tty, char c), void *device)
+tty_interface *tty_add_interface(TTYType type, void (*tty_clear_screen)(), void (*tty_del_char)(), size_t (*tty_print)(TTYColor color, const char *s), void (*tty_kb_in)(tty_interface *tty, char c), void *device)
 {
     tty_interface *interface = (tty_interface *)calloc(sizeof(tty_interface));
     interface->type = type;
     interface->interface_no = num_interfaces++;
-    interface->tty_del = tty_del;
-    interface->tty_in = tty_in;
-    interface->tty_out = tty_out;
-    interface->tty_clear = tty_clear;
+    interface->tty_del_char = tty_del_char;
+    interface->tty_kb_in = tty_kb_in;
+    interface->tty_print = tty_print;
+    interface->tty_clear_screen = tty_clear_screen;
     return interface;
 }
 
 size_t puts(tty_interface *interface, TTYColor color, const char *s)
 {
-    interface->tty_out(color, s);
+    interface->tty_print(color, s);
     return 0;
 }
 
@@ -190,9 +190,12 @@ void printf(const char *fmt, ...)
     va_list a1, a2;
     va_copy(a2, a1);
 
-    va_start(a1, fmt);
-    kprintf(vga_get_tty(), TTYColor_WHITE, fmt, a1);
-    va_end(a1);
+    if (vga_get_mode() == VGA_TEXT)
+    {
+        va_start(a1, fmt);
+        kprintf(vga_get_tty(), TTYColor_WHITE, fmt, a1);
+        va_end(a1);
+    }
 
     va_start(a2, fmt);
     kprintf(serial_get_tty(), TTYColor_WHITE, fmt, a2);
