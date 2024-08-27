@@ -11,6 +11,11 @@
 #include "../l2/tcp.h"
 #include "../l2/icmp.h"
 
+uint32_t ip_to_uint(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4)
+{
+    return b1 << 24 | b2 << 16 | b3 << 8 | b4;
+}
+
 bool ip_is_cidr_subnet(uint32_t ip, uint32_t netip, uint32_t mask)
 {
     return (

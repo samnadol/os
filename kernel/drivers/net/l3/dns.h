@@ -81,7 +81,7 @@ typedef struct dns_answer
 
     uint8_t *data;
     char *domain;
-    uint64_t poweron_epoch_timestamp;
+    uint64_t created;
     struct dns_answer *next;
     struct dns_answer *prev;
 } dns_answer;

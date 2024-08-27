@@ -83,6 +83,14 @@ int strlen(const char *s)
     return i;
 }
 
+void strlower(char *s)
+{
+    for (int i = 0; s[i]; i++)
+    {
+        s[i] = s[i] >= 'A' && s[i] <= 'Z' ? s[i] | 0x60 : s[i];
+    }
+}
+
 void strappend(char *s, char n)
 {
     int len = strlen(s);

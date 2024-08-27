@@ -9,8 +9,10 @@
 #include "../hw/timer.h"
 #include "../drivers/net/l0/ethernet.h"
 #include "../drivers/net/l1/arp.h"
+#include "../drivers/net/l1/ip.h"
 #include "../drivers/net/l2/icmp.h"
 #include "../drivers/net/l2/udp.h"
+#include "../drivers/net/l2/tcp.h"
 #include "../drivers/net/l3/dns.h"
 #include "../drivers/net/l3/http.h"
 #include "scheduler.h"
@@ -53,8 +55,9 @@ void echo_listener(network_device *netdev, void *data, size_t data_size)
     echo_semaphore = true;
 }
 
-bool mock_http_recieve(network_device *driver, void *data, size_t data_size)
+bool mock_http_recieve(network_device *driver, tcp_header *tcp, void *data, size_t data_size)
 {
+    printf("[HTTPM] got data, seq %d\n", tcp->seqno);
     for (int i = 0; i < data_size; i++)
         printf("%c", ((char *)data)[i]);
     printf("\n");
@@ -80,6 +83,7 @@ void process_command(tty_interface *tty)
 {
     // mem_print();
     typing_enabled = false;
+    dprintf("[SHL] Command processing started\n");
 
     arg *args = 0;
     uint8_t last_space = 1;
@@ -143,7 +147,7 @@ void process_command(tty_interface *tty)
         {
             if (i > 0)
                 timer_wait(1000);
-            icmp_send_packet(ethernet_first_netdev(), 0x01010101, i);
+            icmp_send_packet(ethernet_first_netdev(), ip_to_uint(1, 1, 1, 1), i);
         }
         break;
     case COMMAND_IP:
@@ -158,7 +162,7 @@ void process_command(tty_interface *tty)
         char *data = (char *)calloc(10);
         for (int i = 0; i < 10; i++)
             data[i] = i;
-        udp_send_packet(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.ip, 10000, 0x342b794d, 10001, data, 10);
+        udp_send_packet(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.ip, 10000, ip_to_uint(52, 43, 121, 77), 10001, data, 10);
         mfree(data);
         udp_install_listener(10000, echo_listener);
 
@@ -196,7 +200,7 @@ void process_command(tty_interface *tty)
         if (ans)
         {
             ip = (ans->data[0] << 24) | (ans->data[1] << 16) | (ans->data[2] << 8) | (ans->data[3] << 0);
-            http_send_request(ethernet_first_netdev(), ip, 80, args->next->val, "/", &mock_http_recieve);
+            http_send_request(ethernet_first_netdev(), ip, 80, args->next->val, "/", &mock_http_recieve); // blocks until data is recieved or times out
         }
         else
         {
@@ -238,6 +242,7 @@ void process_command(tty_interface *tty)
     tprintf(tty, "> ");
     tty->keybuffer[0] = '\0';
 
+    dprintf("[SHL] Command processing done\n");
     typing_enabled = true;
 }
 

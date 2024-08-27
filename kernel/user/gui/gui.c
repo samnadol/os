@@ -143,26 +143,26 @@ void gui_update()
 
     mem_stats m = mem_get_stats();
     gui_write(buf, sprintf(buf, "os %f/%f, %dfps, uptime %t", m.used, m.total, fps, timer_get_epoch()), 5, 5, VGA_256_WHITE);
-    // gui_write(buf, sprintf(buf, "%s", cpuinfo.vendor), 5, 20, VGA_256_WHITE);
-    // gui_write(buf, sprintf(buf, "%s", cpuinfo.model), 5, 35, VGA_256_WHITE);
-    // gui_write("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26, 140, 55, VGA_256_WHITE);
-    // gui_write("abcdefghijklmnopqrstuvwxyz", 26, 140, 70, VGA_256_WHITE);
-    // gui_write("01234567890 ():@+-/.,?", 21, 140, 85, VGA_256_WHITE);
+    gui_write(buf, sprintf(buf, "%s", cpuinfo.vendor), 5, 20, VGA_256_WHITE);
+    gui_write(buf, sprintf(buf, "%s", cpuinfo.model), 5, 35, VGA_256_WHITE);
+    gui_write("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26, 140, 55, VGA_256_WHITE);
+    gui_write("abcdefghijklmnopqrstuvwxyz", 26, 140, 70, VGA_256_WHITE);
+    gui_write("01234567890 ():@+-/.,?", 21, 140, 85, VGA_256_WHITE);
 
-    // gui_write("PCI Devices:", 12, 140, 115, VGA_256_WHITE);
-    // size_t cy = 130, cx = 140;
-    // struct pci_dev *current = pci_first;
-    // while (current)
-    // {
-    //     gui_write(buf, sprintf(buf, "%x:%x", current->vendor, current->device), cx, cy, VGA_256_WHITE);
-    //     if (cy > 160)
-    //     {
-    //         cy = 115;
-    //         cx += 60;
-    //     }
-    //     cy += 15;
-    //     current = current->next;
-    // }
+    gui_write("PCI Devices:", 12, 140, 115, VGA_256_WHITE);
+    size_t cy = 130, cx = 140;
+    struct pci_dev *current = pci_first;
+    while (current)
+    {
+        gui_write(buf, sprintf(buf, "%x:%x", current->vendor, current->device), cx, cy, VGA_256_WHITE);
+        if (cy > 160)
+        {
+            cy = 115;
+            cx += 60;
+        }
+        cy += 15;
+        current = current->next;
+    }
 
     frames++;
     if (timer_get_tick() - frame_start_tick > TIMER_HZ)
@@ -172,11 +172,11 @@ void gui_update()
         frames = 0;
     }
 
-    // for (int r = 0; r < 8; r++)
-    //     for (int c = 0; c < 0x8; c++)
-    //         for (int x = 0; x < 15; x++)
-    //             for (int y = 0; y < 15; y++)
-    //                 gui_set_pixel((c * 16) + x + 5, (r * 16) + y + 55, c + (r * 8));
+    for (int r = 0; r < 8; r++)
+        for (int c = 0; c < 0x8; c++)
+            for (int x = 0; x < 15; x++)
+                for (int y = 0; y < 15; y++)
+                    gui_set_pixel((c * 16) + x + 5, (r * 16) + y + 55, c + (r * 8));
 
     gui_rectangle(mouse->mouse_x, mouse->mouse_y, 2, 2, VGA_256_GOLD);
 

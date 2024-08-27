@@ -21,9 +21,9 @@ bool http_send_request(network_device *netdev, uint32_t dip, uint16_t dport, cha
         return false;
 
     // send http data to tcpbin.net
-    // tcp_connection_open(get_first_netdev(), get_first_netdev()->ip_c.ip, 0x2ee26a7f, HTTP_SPORT + 1, 44667, 5000); 
-    // tcp_connection_transmit(get_first_netdev(), get_first_netdev()->ip_c.ip, 0x2ee26a7f, HTTP_SPORT + 1, 44667, data, strlen(data), 5000);
-    // tcp_connection_close(get_first_netdev(), get_first_netdev()->ip_c.ip, 0x2ee26a7f, HTTP_SPORT + 1, 44667, 5000);
+    // tcp_connection_open(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.ip, 0x2ee26a7f, HTTP_SPORT + 1, 50445, 5000); 
+    // tcp_connection_transmit(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.ip, 0x2ee26a7f, HTTP_SPORT + 1, 50445, data, strlen(data), 5000);
+    // tcp_connection_close(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.ip, 0x2ee26a7f, HTTP_SPORT + 1, 50445, 5000);
 
     dprintf("[HTTP] connection established\n");
 

@@ -10,6 +10,7 @@ int strcmp(char s1[], char s2[]);
 void strreverse(char *str, int length);
 void strappend(char *s, char n);
 int strlen(const char *s);
+void strlower(char *s);
 char *strpadstart(char *buf, uint16_t desired_length, char padding);
 
 bool char_is_small_letter(char c);

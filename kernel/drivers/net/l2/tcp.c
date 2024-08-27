@@ -186,7 +186,7 @@ void tcp_receive_packet(network_device *netdev, ip_header *ip, tcp_header *tcp, 
 
                 dprintf("[TCP] got data packet\n");
                 tcp_listener listener = tcp_port_listeners[tcp->dport];
-                listener(netdev, payload, payload_len);
+                listener(netdev, tcp, payload, payload_len);
                 tcp_send_packet(netdev, netdev->ip_c.ip, tcp->dport, ntohl(ip->sip), tcp->sport, ce->seq, ce->ack, false, true, false, false, NULL, 0);
             }
         }
@@ -319,7 +319,6 @@ void tcp_uninstall_listener(uint16_t port)
 }
 
 // TODO: http.c http.h parsing and general request methods
-// TODO: ARP cache expiry TTL (like DNS)
 // TODO: testing
 
 void tcp_init()

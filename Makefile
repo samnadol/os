@@ -54,7 +54,7 @@ build/os.iso: build/os.bin
 	grub-mkrescue -o build/os.iso build/iso
 
 build/os.bin: build/boot.o ${K_OBJ_B}
-	$(CC) -T linker.ld -o build/os.bin build/boot.o $(K_OBJ_B) -lgcc -m32 -ffreestanding -O3 -nostdlib -Werror -Wall 
+	$(CC) -T linker.ld -o build/os.bin build/boot.o $(K_OBJ_B) -m32 -lgcc -ffreestanding -O3 -nostdlib -Werror -Wall 
 
 build/boot.o:
 	@mkdir -p $(dir $@)

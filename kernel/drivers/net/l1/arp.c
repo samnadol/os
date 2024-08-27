@@ -16,7 +16,7 @@ typedef struct arp_entry
     struct arp_entry *prev;
 
     uint16_t ttl;
-    uint64_t poweron_epoch_timestamp;
+    uint64_t created;
 } arp_entry;
 arp_entry *arp_cache;
 
@@ -33,7 +33,7 @@ void arp_print(tty_interface *tty)
     while (current)
     {
         tprintf(tty, "\t%i %m ttl: %d\n", current->ip, current->mac, current->ttl);
-        tprintf(tty, "\tcreated %d, expires %d, now %d\n", (uint32_t)current->poweron_epoch_timestamp, (uint32_t)(current->poweron_epoch_timestamp + current->ttl), (uint32_t)timer_get_epoch());
+        tprintf(tty, "\tcreated %d, expires %d, now %d\n", (uint32_t)current->created, (uint32_t)(current->created + current->ttl), (uint32_t)timer_get_epoch());
         current = current->next;
     }
 }
@@ -125,7 +125,7 @@ bool arp_get_mac(network_device *netdev, uint32_t ip, uint8_t mac[6])
     {
         if (current->ip == ip)
         {
-            if ((uint32_t)(timer_get_epoch() - current->poweron_epoch_timestamp) > current->ttl)
+            if ((uint32_t)(timer_get_epoch() - current->created) > current->ttl)
             {
                 // expired
                 dprintf("[ARP] cached mac for %i is expired\n", ip);
@@ -185,7 +185,7 @@ void arp_process_reply(network_device *netdev, arp_packet *packet)
         arp_entry->ip = ntohl(packet->sip);
         memcpy(arp_entry->mac, packet->smac, 6);
         arp_entry->ttl = 60;
-        arp_entry->poweron_epoch_timestamp = timer_get_epoch();
+        arp_entry->created = timer_get_epoch();
         arp_entry->next = 0;
 
         if (!arp_cache)

@@ -39,3 +39,4 @@ typedef struct ip_pseudo_header
 
 bool ip_send_packet(network_device *netdev, uint32_t sip, uint32_t dip, uint16_t protocol, size_t protocol_size, void *protocol_packet, size_t data_size, void *data);
 void ip_receive_packet(network_device *netdev, ip_header *packet, size_t data_size, void *data);
+uint32_t ip_to_uint(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4);

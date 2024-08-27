@@ -15,6 +15,8 @@ dns_answer *dns_cache;
 
 bool dns_send_query(network_device *netdev, uint32_t dns_server_ip, const char *domain_name, int type)
 {
+    strlower((char *)domain_name);
+
     dns_header *packet = (dns_header *)calloc(sizeof(dns_header) + 1 + strlen(domain_name) + 1 + sizeof(dns_query));
     packet->transaction_id = htons(dns_id++);
 
@@ -63,47 +65,55 @@ bool dns_send_query(network_device *netdev, uint32_t dns_server_ip, const char *
 size_t dns_response_read_domain(uint8_t *data, size_t start_offset, uint8_t **buffer)
 {
     bool physical_len_done = false;
-    size_t physical_len = 0;
-    size_t string_len = 0;
+    size_t physical_len = 0; // length of data in response (num char + physical size of pointer (2 byte))
+    size_t string_len = 0; // length of data, calculated (num char total, following all pointers)
     size_t i = start_offset;
+
+    // calculate lengths, must do this before running string assembly or we won't know the length of the required string
+    // inefficient to run this same loop & pointer jumping twice, but unless we want the possibility of buffer overflow if domain name is longer than buffer, required.
+    // per spec max length of domain is 253 char, but this keeps the malloc to the least size possible for a very small performance hit.
 
     while (data[i] != '\0')
     {
         if ((((data[i] << 8) | data[i + i]) & 0xC000) != 0)
         {
+            // pointer in response (string shortening)
             if (!physical_len_done)
                 physical_len += 1;
             physical_len_done = true;
-            i = (((data[i] << 8) | data[i + 1]) & 0x3FFF) - sizeof(dns_header);
+            i = (((data[i] << 8) | data[i + 1]) & 0x3FFF) - sizeof(dns_header); // set i to pointed address, continue from that address
         }
         else
         {
+            // normal string
             if (!physical_len_done)
                 physical_len += data[i] + 1;
             string_len += data[i] + 1;
-            i += data[i] + 1;
+            i += data[i] + 1; // increment i; next character
         }
     }
 
     *buffer = (uint8_t *)calloc(string_len);
     i = start_offset;
 
+    // assemble string
     size_t str_pos = 0;
     while (data[i] != '\0')
     {
-        if ((((data[i] << 8) | data[i + i]) & 0xC000) != 0)
-            i = (((data[i] << 8) | data[i + 1]) & 0x3FFF) - sizeof(dns_header);
+        if ((((data[i] << 8) | data[i + i]) & 0xC000) != 0) // per spec, if top two bits are 1, is pointer
+            i = (((data[i] << 8) | data[i + 1]) & 0x3FFF) - sizeof(dns_header); // jump to pointed address
         else
         {
             for (int j = 1; j < data[i] + 1; j++)
-                (*buffer)[str_pos++] = data[i + j];
-            (*buffer)[str_pos++] = '.';
+                (*buffer)[str_pos++] = data[i + j]; // add chars from string to buffer
+            (*buffer)[str_pos++] = '.'; // add dot domain separator after all chars from this portion of domain
             i += data[i] + 1;
         }
     }
-    (*buffer)[string_len - 1] = 0;
+    (*buffer)[string_len - 1] = 0; // null terminate domain name
+    strlower((char *)*buffer);
 
-    return physical_len;
+    return physical_len; // return length of characters traversed from start_offset, not inluding pointer jumps, but including the actual pointer lengths
 }
 
 void dns_handle_response(network_device *dev, dns_header *header, size_t data_len)
@@ -114,7 +124,7 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
         return;
 
     uint8_t *qna = (uint8_t *)calloc(data_len + 1);
-    memcpy(qna, (uint8_t *)header + sizeof(dns_header), data_len);
+    memcpy(qna, (uint8_t *)header + sizeof(dns_header), data_len); // copy useful dns data to new buffer
 
     size_t i = 0;
     for (size_t current_question = 0; current_question < header->num_questions; current_question++)
@@ -122,10 +132,11 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
         uint8_t *domain = 0;
         i += dns_response_read_domain(qna, i, &domain) + 1;
 
-        // uint16_t type = (qna[i] << 8) | (qna[i + 1]);
-        // i += 2;
-        // uint16_t class = (qna[i] << 8) | (qna[i + 1]);
-        // i += 2;
+        // unused, uncomment to use and command i+=4;
+            // uint16_t type = (qna[i] << 8) | (qna[i + 1]);
+            // i += 2;
+            // uint16_t class = (qna[i] << 8) | (qna[i + 1]);
+            // i += 2;
         i += 4;
     }
     for (size_t current_answer = 0; current_answer < header->num_answers; current_answer++)
@@ -134,7 +145,7 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
         i += dns_response_read_domain(qna, i, &domain) + 1;
 
         dns_answer *ans = (dns_answer *)calloc(sizeof(dns_answer));
-        memcpy(ans, qna + i, 10);
+        memcpy(ans, qna + i, 10); // copy type, class, ttl, and len into dns_answer struct
         i += 10;
 
         ans->type = ntohs(ans->type);
@@ -155,7 +166,7 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
         i += ans->len;
 
         ans->domain = (char *)domain;
-        ans->poweron_epoch_timestamp = timer_get_epoch();
+        ans->created = timer_get_epoch();
         ans->next = 0;
 
         switch (ans->type)
@@ -216,7 +227,7 @@ void dns_print(tty_interface *tty)
             tprintf(tty, "CNAME %s: %s type: %x class: %x ttl: %d\n", current->domain, current->data, current->type, current->class, current->ttl);
             break;
         }
-        tprintf(tty, "\tcreated %d, expires %d, now %d\n", (uint32_t)current->poweron_epoch_timestamp, (uint32_t)(current->poweron_epoch_timestamp + current->ttl), (uint32_t)timer_get_epoch());
+        tprintf(tty, "\tcreated %d, expires %d, now %d\n", (uint32_t)current->created, (uint32_t)(current->created + current->ttl), (uint32_t)timer_get_epoch());
         current = current->next;
     }
 }
@@ -229,7 +240,7 @@ dns_answer *dns_get_ip(network_device *netdev, uint32_t dns_server_ip, char *dom
         if (strcmp(current->domain, domain) == 0)
         {
             // domain matches, check ttl expiry
-            if ((uint32_t)(timer_get_epoch() - current->poweron_epoch_timestamp) > current->ttl)
+            if ((uint32_t)(timer_get_epoch() - current->created) > current->ttl)
             {
                 // expired
                 dprintf("[DNS] %s in cache but expired, removing\n", domain);

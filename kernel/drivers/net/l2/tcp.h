@@ -38,7 +38,7 @@ typedef struct __attribute__((packed, aligned(1))) tcp_header
     uint16_t urgent_pointer;
 } tcp_header;
 
-typedef bool (*tcp_listener)(network_device *, void *, size_t);
+typedef bool (*tcp_listener)(network_device *, tcp_header *, void *, size_t);
 
 void tcp_init();
 void tcp_receive_packet(network_device *driver, ip_header *ip_packet, tcp_header *packet, void *data);
