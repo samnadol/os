@@ -22,6 +22,16 @@ void *memcpy(void *destination, void *source, size_t n)
     size_t i = 0;
     void *ret = destination;
 
+    for (i = 0; i < n / 8; i++)
+    {
+        *(uint64_t *)destination = *(uint64_t *)source;
+
+        source += 8;
+        destination += 8;
+    }
+
+    n -= i * 8;
+
     for (i = 0; i < n / 4; i++)
     {
         *(uint32_t *)destination = *(uint32_t *)source;

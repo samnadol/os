@@ -22,7 +22,7 @@ void mouse_handler(registers_t *r)
         break;
     case 2:
         mouse_byte[2] = inb(PORT_PS2_DATA);
-        gui_mouse(mouse_byte[0], mouse_byte[1], mouse_byte[2]);
+        gui_mouse(mouse_byte[0], mouse_byte[1] - ((mouse_byte[0] << 4) & 0x100), mouse_byte[2] - ((mouse_byte[0] << 3) & 0x100));
         mouse_cycle = 0;
         break;
     }
