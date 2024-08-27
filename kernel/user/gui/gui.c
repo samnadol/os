@@ -80,7 +80,7 @@ void gui_init()
     }
 }
 
-void gui_set_pixel(uint16_t x, uint16_t y, uint16_t color)
+inline static void gui_set_pixel(uint16_t x, uint16_t y, uint16_t color)
 {
     if (((y * vga_info->vga_width) + x) > sb_size)
     {
@@ -90,18 +90,25 @@ void gui_set_pixel(uint16_t x, uint16_t y, uint16_t color)
     sb[(y * vga_info->vga_width) + x] = color;
 }
 
-void gui_rectangle(uint16_t tlx, uint16_t tly, uint16_t w, uint16_t h, uint16_t color)
+inline static void gui_set_line(uint16_t x, uint16_t y, uint16_t w, uint16_t color)
 {
-    for (size_t x = tlx; x < tlx + w; x++)
-        for (size_t y = tly; y < tly + h; y++)
-            gui_set_pixel(clamp(x, 0, vga_info->vga_width - 1), clamp(y, 0, vga_info->vga_height - 1), color);
+    memset(sb + (y * vga_info->vga_width) + x, color, w);
 }
 
-void gui_clear_screen(uint16_t color)
+inline static void gui_rectangle(uint16_t tlx, uint16_t tly, uint16_t w, uint16_t h, uint16_t color)
 {
-    for (int x = 0; x < vga_info->vga_width; x++)
-        for (int y = 0; y < vga_info->vga_height; y++)
-            gui_set_pixel(x, y, color);
+    for (size_t y = tly; y < tly + h; y++)
+        gui_set_line(tlx, y, w, color);
+}
+
+inline static void gui_clear_screen(uint16_t color)
+{
+    memset(sb, color, sb_size);
+}
+
+inline static void gui_copy_sb()
+{
+    memcpy(vga_info->vga_address, sb, sb_size);
 }
 
 // returns width of letter
@@ -111,6 +118,8 @@ size_t gui_print_letter(uint8_t *fontchar, uint16_t x, uint16_t y, uint16_t colo
     while (fontchar[l_width] != 99)
         l_width++;
     l_width /= FONT_HEIGHT;
+
+    // memcpy(sb + ((cy + y) * vga_info->vga_width) + x, fontchar + (cy * l_width), l_width);
 
     for (size_t cx = 0; cx < l_width; cx++)
         for (size_t cy = 0; cy < FONT_HEIGHT; cy++)
@@ -165,7 +174,7 @@ void gui_update()
     // }
 
     frames++;
-    if (timer_get_tick() - frame_start_tick > TIMER_HZ)
+    if (timer_get_tick() - frame_start_tick > 1000)
     {
         frame_start_tick = timer_get_tick();
         fps = frames;
@@ -174,13 +183,11 @@ void gui_update()
 
     // for (int r = 0; r < 8; r++)
     //     for (int c = 0; c < 0x8; c++)
-    //         for (int x = 0; x < 15; x++)
-    //             for (int y = 0; y < 15; y++)
-    //                 gui_set_pixel((c * 16) + x + 5, (r * 16) + y + 55, c + (r * 8));
+    //         gui_rectangle((c * 16) + 5, (r * 16) + 55, 15, 15, c + (r * 8));
 
     gui_rectangle(mouse->mouse_x, mouse->mouse_y, 2, 2, VGA_256_GOLD);
 
-    memcpy(vga_info->vga_address, sb, sb_size);
+    gui_copy_sb();
 }
 
 void mouse_lc()
