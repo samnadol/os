@@ -228,7 +228,7 @@ void process_command(tty_interface *tty)
                 tprintf(tty, "Don't have an IP to release!\n");
         else if (strcmp(args->next->val, "request") == 0)
             if (!dev->ip_c.ip)
-                dhcp_configuration_request(dev);
+                dhcp_configuration_request(dev, 3000);
             else
                 tprintf(tty, "Already have an IP!\n");
         else
