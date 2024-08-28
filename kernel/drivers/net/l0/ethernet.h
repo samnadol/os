@@ -30,11 +30,12 @@ typedef struct __attribute__((packed, aligned(1))) ethernet_packet
 
 typedef struct ip_conf
 {
-    uint32_t ip;
-    uint32_t netmask;
-    uint32_t gateway;
-    uint32_t dns;
-    uint64_t lease_time;
+    uint32_t ip;            // ip address
+    uint32_t netmask;       // netmask
+    uint32_t gateway;       // gateway
+    uint32_t dns;           // dns server ip
+    uint32_t dhcp;          // dhcp server ip
+    uint64_t lease_time;    // lease time of ip
 } ip_conf;
 
 typedef struct network_device

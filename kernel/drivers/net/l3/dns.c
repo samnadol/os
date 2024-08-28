@@ -195,7 +195,7 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
     mfree(qna);
 }
 
-void dns_udp_listener(network_device *netdev, void *data, size_t data_size)
+void dns_udp_listener(network_device *netdev, ip_header *ip, udp_header *udp, void *data, size_t data_size)
 {
     dns_header *header = (dns_header *)data;
     header->transaction_id = ntohs(header->transaction_id);

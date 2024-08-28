@@ -13,7 +13,7 @@ typedef struct __attribute__((packed, aligned(1))) udp_header
     uint16_t checksum;
 } udp_header;
 
-typedef void (*udp_listener)(network_device *, void *, size_t);
+typedef void (*udp_listener)(network_device *, ip_header *, udp_header *, void *, size_t);
 
 void udp_init(void);
 

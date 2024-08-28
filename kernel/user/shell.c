@@ -15,6 +15,7 @@
 #include "../drivers/net/l2/tcp.h"
 #include "../drivers/net/l3/dns.h"
 #include "../drivers/net/l3/http.h"
+#include "../drivers/net/l3/dhcp.h"
 #include "scheduler.h"
 #include "gui/gui.h"
 
@@ -45,7 +46,7 @@ const unsigned long hash(const char *str)
  */
 
 bool echo_semaphore;
-void echo_listener(network_device *netdev, void *data, size_t data_size)
+void echo_listener(network_device *netdev, ip_header *ip, udp_header *udp, void *data, size_t data_size)
 {
     printf("[ECHO] GOT ECHO: ");
     for (int i = 0; i < data_size; i++)
@@ -218,10 +219,23 @@ void process_command(tty_interface *tty)
             tprintf(tty, "This terminal is not on a VGA display, cannot switch to GUI.\n");
         }
         break;
-    case COMMAND_TEXT:
+    case COMMAND_DHCP:
+        network_device *dev = ethernet_first_netdev();
+        if (strcmp(args->next->val, "release") == 0)
+            if (dev->ip_c.ip)
+                dhcp_configuration_release(dev);
+            else
+                tprintf(tty, "Don't have an IP to release!\n");
+        else if (strcmp(args->next->val, "request") == 0)
+            if (!dev->ip_c.ip)
+                dhcp_configuration_request(dev);
+            else
+                tprintf(tty, "Already have an IP!\n");
+        else
+            printf("Unknown subcommand!\n");
         break;
     case COMMAND_HELP:
-        tprintf(tty, "COMMAND_CPU = 0xB8866ED,\nCOMMAND_MEM = 0xB889004,\nCOMMAND_PCI = 0xB889C81,\nCOMMAND_IRQ = 0xB8880B1,\nCOMMAND_ARP = 0xB885EA8,\nCOMMAND_ICMP = 0x7C9856EE,\nCOMMAND_IP = 0x59783E,\nCOMMAND_DNS = 0xB886AEA,\nCOMMAND_ECHO = 0x7C9624C4,\nCOMMAND_DNSREQ = 0xF92A6D12,\nCOMMAND_HTTP = 0x7C9813C5,\nCOMMAND_GUI = 0xB88788A,\nCOMMAND_TEXT = 0x7C9E690A,\nCOMMAND_HELP = 0x7C97D2EE");
+        tprintf(tty, "COMMAND_CPU = 0xB8866ED,\nCOMMAND_MEM = 0xB889004,\nCOMMAND_PCI = 0xB889C81,\nCOMMAND_IRQ = 0xB8880B1,\nCOMMAND_ARP = 0xB885EA8,\nCOMMAND_ICMP = 0x7C9856EE,\nCOMMAND_IP = 0x59783E,\nCOMMAND_DNS = 0xB886AEA,\nCOMMAND_ECHO = 0x7C9624C4,\nCOMMAND_DNSREQ = 0xF92A6D12,\nCOMMAND_HTTP = 0x7C9813C5,\nCOMMAND_GUI = 0xB88788A,\nCOMMAND_DHCP = 0x7C9E690A,\nCOMMAND_HELP = 0x7C97D2EE");
         tprintf(tty, "\n");
         break;
     default:
@@ -252,7 +266,7 @@ void process_command(tty_interface *tty)
 
 void shell_init()
 {
-    // printf("0x%x\n", hash("help"));
+    // printf("0x%x\n", hash("dhcp"));
     printf("> ");
     typing_enabled = true;
 }
