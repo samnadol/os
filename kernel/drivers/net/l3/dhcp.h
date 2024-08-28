@@ -61,10 +61,7 @@ typedef struct __attribute__((packed, aligned(1))) dhcp_packet
 
 void dhcp_init(network_device *netdev);
 
-bool dhcp_send_discover(network_device *netdev);
-bool dhcp_send_request(network_device *netdev, uint32_t server_ip, uint32_t requested_ip);
-
 bool dhcp_configuration_release(network_device *netdev);
-bool dhcp_configuration_request(network_device *netdev);
+bool dhcp_configuration_request(network_device *netdev, uint32_t timeout);
 
 #endif

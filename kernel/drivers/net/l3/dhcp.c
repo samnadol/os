@@ -236,18 +236,18 @@ bool dhcp_configuration_release(network_device *netdev)
     return res;
 }
 
-bool dhcp_configuration_request(network_device *netdev)
+bool dhcp_configuration_request(network_device *netdev, uint32_t timeout)
 {
     udp_install_listener(68, dhcp_udp_listener);
     dhcp_send_discover(netdev);
 
-    uint64_t ms_waited = 0;
+    uint32_t ms_waited = 0;
     while (offer_count < 1)
     {
         timer_wait(10);
         ms_waited += 10;
 
-        if (ms_waited > DHCP_TIMEOUT_MS)
+        if (ms_waited > timeout)
             break;
     }
 
@@ -271,5 +271,5 @@ bool dhcp_configuration_request(network_device *netdev)
 
 void dhcp_init(network_device *netdev)
 {
-    dhcp_configuration_request(netdev);
+    dhcp_configuration_request(netdev, 3000);
 }
