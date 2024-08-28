@@ -2,6 +2,7 @@
 
 #include "../drivers/vga/vga.h"
 #include "../drivers/vga/modes/text.h"
+#include "../drivers/net/l0/ethernet.h"
 #include "../lib/string.h"
 #include "../hw/cpu/cpuid.h"
 #include "../drivers/tty.h"
@@ -22,7 +23,7 @@ void status_update()
 {
     memset(buffer, 0, 79);
     mem_stats mem = mem_get_stats();
-    sprintf(buffer, "os %f / %f (%d%%)", mem.used, mem.total, (mem.used * 100) / mem.total);
+    sprintf(buffer, "os %i %f / %f (%d%%)", ethernet_first_netdev()->ip_c.ip, mem.used, mem.total, (mem.used * 100) / mem.total);
     // sprintf(buffer, "os %f", mem.used);
     status_write(0, 0, buffer);
 }

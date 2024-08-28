@@ -200,10 +200,13 @@ bool dhcp_send_request(network_device *netdev, uint32_t server_ip, uint32_t requ
 
 bool dhcp_configuration_release(network_device *netdev)
 {
+    if (!netdev->ip_c.ip)
+        return false;
+
     dhcp_packet *packet = (dhcp_packet *)calloc(sizeof(dhcp_packet));
     if (!packet)
         panic("calloc failed (dhcp_release_configuration)");
-    
+
     packet->op = DHCP_BOOT_OP_REQUEST;
     packet->htype = DHCP_HTYPE_ETHERNET;
     packet->hlen = 6;
@@ -238,6 +241,9 @@ bool dhcp_configuration_release(network_device *netdev)
 
 bool dhcp_configuration_request(network_device *netdev)
 {
+    if (netdev->ip_c.ip)
+        return false;
+
     udp_install_listener(68, dhcp_udp_listener);
     dhcp_send_discover(netdev);
 
@@ -263,9 +269,11 @@ bool dhcp_configuration_request(network_device *netdev)
         {
             dprintf("[DHCP] offer for %i (not currently in use)\n", offers[i].offered_ip);
             dhcp_send_request(netdev, offers[i].server_ip, offers[i].offered_ip);
+            udp_uninstall_listener(68);
             return true;
         }
     }
+    udp_uninstall_listener(68);
     return false;
 }
 
