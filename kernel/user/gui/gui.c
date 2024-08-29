@@ -181,9 +181,9 @@ void gui_update()
         frames = 0;
     }
 
-    // for (int r = 0; r < 8; r++)
-    //     for (int c = 0; c < 0x8; c++)
-    //         gui_rectangle((c * 16) + 5, (r * 16) + 55, 15, 15, c + (r * 8));
+    for (int r = 0; r < 8; r++)
+        for (int c = 0; c < 0x8; c++)
+            gui_rectangle((c * 16) + 5, (r * 16) + 55, 15, 15, c + (r * 8));
 
     gui_rectangle(mouse->mouse_x, mouse->mouse_y, 2, 2, VGA_256_GOLD);
 

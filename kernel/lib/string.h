@@ -20,7 +20,7 @@ char *itoa(uint32_t num, char *buf, uint8_t base);
 char *human_readable_size(uint64_t size, char *buf, int bufsize);
 
 void *memset(void *ptr, int value, size_t num);
-void *memcpy(void *destination, void *source, size_t n);
+void *memcpy(void *to, void *from, size_t n);
 
 size_t sprintf(char *dst, const char *fmt, ...);
 

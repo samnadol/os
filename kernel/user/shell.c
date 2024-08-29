@@ -153,7 +153,7 @@ void process_command(tty_interface *tty)
         break;
     case COMMAND_IP:
         network_device *netdev = ethernet_first_netdev();
-        tprintf(tty, "IP: %i\nNetmask: %i\nGateway: %i\nDNS: %i\n", netdev->ip_c.ip, netdev->ip_c.netmask, netdev->ip_c.gateway, netdev->ip_c.dns);
+        tprintf(tty, "IP: %i\nNetmask: %i\nGateway: %i\nDNS: %i\nDHCP: %i\n", netdev->ip_c.ip, netdev->ip_c.netmask, netdev->ip_c.gateway, netdev->ip_c.dns, netdev->ip_c.dhcp);
         break;
     case COMMAND_DNS:
         dns_print(tty);
