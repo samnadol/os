@@ -31,7 +31,7 @@ void mem_print(tty_interface *tty)
 void init_mem(mem_segment_t *biggest_mem_segment)
 {
     // printf("[MEM] Dyamic memory manager initializing\n");
-    // printf("[MEM] Used memory segment 0x%p - 0x%p -> %s\n", biggest_mem_segment->start, biggest_mem_segment->start + biggest_mem_segment->len, human_readable_size(biggest_mem_segment->len, itoa_buf, 8));
+    // printf("[MEM] Used memory segment 0x%p - 0x%p -> %f\n", biggest_mem_segment->start, biggest_mem_segment->start + biggest_mem_segment->len, biggest_mem_segment->len);
 
     mem_start = (mem_node_t *)biggest_mem_segment->start;
     mem_start->size = biggest_mem_segment->len - MEM_1NODE_SIZE;

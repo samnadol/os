@@ -23,7 +23,7 @@ void status_update()
 {
     memset(buffer, 0, 79);
     mem_stats mem = mem_get_stats();
-    sprintf(buffer, "os %i %f / %f (%d%%)", ethernet_first_netdev()->ip_c.ip, mem.used, mem.total, (mem.used * 100) / mem.total);
+    sprintf(buffer, "os %i %d / %d (%d%%)", ethernet_first_netdev() ? ethernet_first_netdev()->ip_c.ip : 0, mem.used, mem.total, (mem.used * 100) / mem.total);
     // sprintf(buffer, "os %f", mem.used);
     status_write(0, 0, buffer);
 }

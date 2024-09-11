@@ -17,7 +17,7 @@ void *memset(void *ptr, int value, size_t num)
     return ptr;
 }
 
-void *memcpy(void *to, const void *from, unsigned int n)
+void *memcpy(void *to, void *from, size_t n)
 {
     size_t i = 0;
     void *ret = to;
@@ -108,15 +108,17 @@ void strappend(char *s, char n)
     s[len + 1] = '\0';
 }
 
-int strcmp(char s1[], char s2[])
+int strcmp(char *s1, char *s2)
 {
-    int i;
-    for (i = 0; s1[i] == s2[i]; i++)
+    size_t i = 0;
+    for (i = 0;; i++)
     {
-        if (s1[i] == '\0')
+        if (s1[i] != s2[i])
+            return s1[i] - s2[i];
+
+        if (s1[i] == 0 || s1[i] == 0)
             return 0;
     }
-    return s1[i] - s2[i];
 }
 
 void strreverse(char *str, int length)
