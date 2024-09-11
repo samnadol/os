@@ -5,6 +5,7 @@
 #include "../../../lib/arpa/inet.h"
 #include "../../../hw/mem.h"
 #include "../../../hw/timer.h"
+#include "../../../user/shell.h"
 
 size_t dns_id;
 
@@ -133,10 +134,10 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
         i += dns_response_read_domain(qna, i, &domain) + 1;
 
         // unused, uncomment to use and command i+=4;
-            // uint16_t type = (qna[i] << 8) | (qna[i + 1]);
-            // i += 2;
-            // uint16_t class = (qna[i] << 8) | (qna[i + 1]);
-            // i += 2;
+        // uint16_t type = (qna[i] << 8) | (qna[i + 1]);
+        // i += 2;
+        // uint16_t class = (qna[i] << 8) | (qna[i + 1]);
+        // i += 2;
         i += 4;
     }
     for (size_t current_answer = 0; current_answer < header->num_answers; current_answer++)
@@ -296,6 +297,9 @@ dns_answer *dns_get_ip(network_device *netdev, uint32_t dns_server_ip, char *dom
             }
             current = current->next;
         }
+
+        if (is_ctrlc())
+            break;
     }
 
     return 0;

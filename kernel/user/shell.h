@@ -30,4 +30,6 @@ bool shell_backspace(tty_interface *tty);
 void shell_enter(tty_interface *tty);
 void shell_control(tty_interface *tty, char c, bool shift);
 
+bool is_ctrlc();
+
 #endif

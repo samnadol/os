@@ -304,9 +304,22 @@ bool shell_backspace(tty_interface *tty)
     }
 }
 
+bool ctrlc = false;
 void shell_control(tty_interface *tty, char c, bool shift)
 {
     tprintf(tty, "CTRL+%s%c\n", shift ? "SHIFT+" : "", c);
+    if (!shift && c == 'c')
+        ctrlc = true;
+}
+
+bool is_ctrlc()
+{
+    if (ctrlc)
+    {
+        ctrlc = false;
+        return true;
+    }
+    return false;
 }
 
 void shell_enter(tty_interface *tty)

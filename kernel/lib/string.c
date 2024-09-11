@@ -17,7 +17,7 @@ void *memset(void *ptr, int value, size_t num)
     return ptr;
 }
 
-void *memcpy(void *to, const void *from, unsigned int n)
+void *memcpy(void *to, void *from, size_t n)
 {
     size_t i = 0;
     void *ret = to;
