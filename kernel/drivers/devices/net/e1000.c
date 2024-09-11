@@ -379,7 +379,7 @@ void e1000_int_handle(network_device *netdev, registers_t *r)
 
 network_device *e1000_init(pci_device *pci)
 {
-    network_device *netdev = (network_device *)malloc(sizeof(network_device));
+    network_device *netdev = (network_device *)calloc(sizeof(network_device));
     if (!netdev)
         panic("malloc failed (e1000 init)");
 

@@ -204,10 +204,12 @@ void printf(const char *fmt, ...)
 
 void dprintf(const char *fmt, ...)
 {
-    va_list a1;
-    va_start(a1, fmt);
-    kprintf(serial_get_tty(), TTYColor_WHITE, fmt, a1);
-    va_end(a1);
+    va_list a1, a2;
+    va_copy(a2, a1);
+
+    va_start(a2, fmt);
+    kprintf(serial_get_tty(), TTYColor_WHITE, fmt, a2);
+    va_end(a2);
 }
 
 void tprintf(tty_interface *tty, const char *fmt, ...)
