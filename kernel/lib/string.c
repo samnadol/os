@@ -103,7 +103,7 @@ void strlower(char *s)
 
 void strappend(char *s, char n)
 {
-    int len = strlen(s);
+    size_t len = strlen(s);
     s[len] = n;
     s[len + 1] = '\0';
 }
@@ -121,6 +121,25 @@ int strcmp(char *s1, char *s2)
     }
 }
 
+int strncmp(char *s1, char *s2, size_t n)
+{
+    size_t i = 0;
+    for (i = 0;; i++)
+    {
+        // do not check past n characters
+        if (i > (n - 1))
+            return 0;
+
+        // return diff in earliest dissimilar character
+        if (s1[i] != s2[i])
+            return s1[i] - s2[i];
+
+        // if either string ends, return 0
+        if (s1[i] == 0 || s2[i] == 0)
+            return 0;
+    }
+}
+
 void strreverse(char *str, int length)
 {
     int start = 0;
@@ -131,6 +150,73 @@ void strreverse(char *str, int length)
         start++;
         end--;
     }
+}
+
+size_t strfindchar(char *s, char delim)
+{
+    size_t i;
+    for (i = 0; i < strlen(s); i++)
+        if (s[i] == delim)
+            break;
+    return (i == strlen(s)) ? -1 : i + 1;
+}
+
+char *strcut(char *s, size_t n)
+{
+    char *r = (char *)calloc(n);
+    memcpy(r, s, n - 1);
+    return r;
+}
+
+char *strrep(char *os, char *needle, char *replacement)
+{
+    size_t needle_size = strlen(needle);
+    size_t replacement_size = strlen(replacement);
+
+    size_t count_original = 0;
+    for (size_t i = 0; i < strlen(os); i++)
+    {
+        if (strncmp(needle, os + i, needle_size) == 0)
+        {
+            count_original++;
+            i += needle_size;
+        }
+    }
+
+    size_t new_size = strlen(os) - ((needle_size - replacement_size) * count_original) - 1;
+    char *ns = (char *)calloc(new_size + 1);
+
+    size_t ns_loc = 0; // location in new string
+    size_t os_loc = 0; // location in old string
+
+    for (os_loc = 0; os_loc < strlen(os); os_loc++)
+    {
+        if (strncmp(needle, os + os_loc, needle_size) == 0)
+        {
+            memcpy(ns + ns_loc, replacement, replacement_size);
+            ns_loc += replacement_size;
+            os_loc += needle_size - 1;
+        }
+        else
+        {
+            ns[ns_loc] = os[os_loc];
+            ns_loc++;
+        }
+    }
+    ns[ns_loc - 1] = 0;
+
+    return ns;
+}
+
+size_t strfindstr(char *s, char *delim)
+{
+    size_t i;
+    for (i = 0; i < strlen(s) - strlen(delim); i++)
+    {
+        if (strncmp(delim, s + i, strlen(delim)) == 0)
+            break;
+    }
+    return (i == strlen(s) - strlen(delim)) ? -1 : i;
 }
 
 char *itoa(uint32_t num, char *buf, uint8_t base)

@@ -59,12 +59,8 @@ void echo_listener(network_device *netdev, ip_header *ip, udp_header *udp, void 
 bool mock_http_recieve(network_device *driver, tcp_header *tcp, void *data, size_t data_size)
 {
     http_response *resp = http_parse_response(data, data_size);
-    mfree(resp);
-    
-    printf("[HTTPM] got data, seq %d\n", tcp->seqno);
-    // for (int i = 0; i < data_size; i++)
-    //     printf("%c", ((char *)data)[i]);
-    // printf("\n");
+    http_free_response(resp);
+
     return true;
 }
 

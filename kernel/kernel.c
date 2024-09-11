@@ -72,12 +72,18 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 
 	init_mem(&biggest_mem_segment);
 	tty_init();
-
 	tty_clear_screen(vga_get_tty());
+
+	vga_get_tty()->tty_print(TTYColor_WHITE, "\n");
+	printf("            _____      \n\
+           |____ |     \n\
+  ___  ___     / /     \n\
+ / _ \\/ __|    \\ \\  \n\
+| (_) \\__ \\____/ /   \n\
+ \\___/|___/\\____/    \n");
 
 	status_init();
 	status_update();
-	vga_get_tty()->tty_print(TTYColor_WHITE, "\n");
 
 	dprintf("[MEM] using mem region %p - %p\n", biggest_mem_segment.start, biggest_mem_segment.start + biggest_mem_segment.len);
 

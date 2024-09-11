@@ -7,52 +7,29 @@
 #include "../../../lib/string.h"
 #include "../../../lib/random.h"
 
-size_t strfindchar(char *s, char delim)
+void http_free_response(http_response *resp)
 {
-    size_t i;
-    for (i = 0; i < strlen(s); i++)
-        if (s[i] == delim)
-            break;
-    return (i == strlen(s)) ? -1 : i + 1;
-}
-
-char *strcut(char *s, size_t n)
-{
-    char *r = (char *)calloc(n);
-    memcpy(r, s, n - 1);
-    return r;
-}
-
-size_t strfindstr(char *s, char *delim)
-{
-    size_t i;
-    for (i = 0; i < strlen(s) - strlen(delim); i++)
-    {
-        char *s1 = strcut(s + i, strlen(delim) + 1);
-        if (strcmp(s1, delim) == 0)
-        {
-            mfree(s1);
-            break;
-        }
-        mfree(s1);
-    }
-    return (i == strlen(s) - strlen(delim)) ? -1 : i;
+    mfree(resp->response_string);
+    mfree(resp->data);
+    mfree(resp);
 }
 
 http_response *http_parse_response(void *data, size_t data_size)
 {
     http_response *ret = (http_response *)calloc(sizeof(http_response));
 
-
     size_t firstnlloc = strfindchar(data, '\n');
     size_t contentstart = strfindstr(data, "\r\n\r\n");
 
     ret->response_string = strcut(data, firstnlloc);
 
-    ret->data = (char *)calloc(strlen(data) - contentstart - strlen("\r\n\r\n"));
-    memcpy(ret->data, data + contentstart + strlen("\r\n\r\n"), strlen(data) - contentstart - strlen("\r\n\r\n"));
+    char *respdata = (char *)calloc(strlen(data) - contentstart - strlen("\r\n\r\n"));
+    memcpy(respdata, data + contentstart + strlen("\r\n\r\n"), strlen(data) - contentstart - strlen("\r\n\r\n"));
 
+    ret->data = strrep(respdata, "\r\n", "\n");
     printf("%s\n", ret->data);
+
+    mfree(respdata);
 
     return ret;
 }

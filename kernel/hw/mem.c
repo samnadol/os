@@ -80,7 +80,7 @@ void *malloc(size_t req_size)
         best->next->prev = mem_node_alloc;
     best->next = mem_node_alloc;
 
-    // printf("[MEM] malloc %d\n", req_size);
+    dprintf("[MEM] malloc %p (%d b)\n", ((uint8_t *)mem_node_alloc + MEM_1NODE_SIZE), req_size);
 
     status_update();
     return (void *)((uint8_t *)mem_node_alloc + MEM_1NODE_SIZE);
@@ -106,6 +106,8 @@ void *calloc_align(size_t size, size_t align)
 
 void mfree(void *ptr)
 {
+    dprintf("[MEM] free %p\n", ptr);
+
     if (ptr == NULL)
         return;
 

@@ -204,6 +204,9 @@ void printf(const char *fmt, ...)
 
 void dprintf(const char *fmt, ...)
 {
+    if (!serial_get_tty())
+        return;
+        
     va_list a1, a2;
     va_copy(a2, a1);
 
