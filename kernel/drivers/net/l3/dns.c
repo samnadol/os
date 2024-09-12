@@ -132,8 +132,6 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
     {
         uint8_t *domain = 0;
         i += dns_response_read_domain(qna, i, &domain) + 1;
-
-        printf("freeing dns question %s\n", domain);
         mfree(domain);
 
         // unused, uncomment to use and command i+=4;

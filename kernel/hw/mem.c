@@ -130,13 +130,13 @@ void *kcalloc_align(char *file, int line, size_t size, size_t align)
 
 void mfree(void *ptr)
 {
-    dprintf("[MEM] free %p\n", ptr);
-
     if (ptr == NULL)
         return;
 
     mem_node_t *free = (mem_node_t *)((uint8_t *)ptr - MEM_1NODE_SIZE);
+    dprintf("[MEM] free %p (%d b)\n", ptr, free->size);
     ptr = NULL;
+    
 
     if (free == NULL)
         return;
