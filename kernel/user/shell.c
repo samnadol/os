@@ -58,8 +58,8 @@ void echo_listener(network_device *netdev, ip_header *ip, udp_header *udp, void 
 
 bool mock_http_recieve(network_device *driver, tcp_header *tcp, void *data, size_t data_size)
 {
-    http_response *resp = http_parse_response(data, data_size);
-    http_free_response(resp);
+    // http_response *resp = http_parse_response(data, data_size);
+    // http_free_response(resp);
 
     return true;
 }
@@ -236,6 +236,9 @@ void process_command(tty_interface *tty)
     case COMMAND_HELP:
         tprintf(tty, "COMMAND_CPU = 0xB8866ED,\nCOMMAND_MEM = 0xB889004,\nCOMMAND_PCI = 0xB889C81,\nCOMMAND_IRQ = 0xB8880B1,\nCOMMAND_ARP = 0xB885EA8,\nCOMMAND_ICMP = 0x7C9856EE,\nCOMMAND_IP = 0x59783E,\nCOMMAND_DNS = 0xB886AEA,\nCOMMAND_ECHO = 0x7C9624C4,\nCOMMAND_DNSREQ = 0xF92A6D12,\nCOMMAND_HTTP = 0x7C9813C5,\nCOMMAND_GUI = 0xB88788A,\nCOMMAND_DHCP = 0x7C9E690A,\nCOMMAND_HELP = 0x7C97D2EE");
         tprintf(tty, "\n");
+        break;
+    case COMMAND_MEMLEAK:
+        mem_print_blocks(tty);
         break;
     default:
         tprintf(tty, "UNKNOWN COMMAND %s (hash 0x%x)\n", args[0].val, hash(args[0].val));
