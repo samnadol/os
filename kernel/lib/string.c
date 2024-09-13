@@ -158,11 +158,14 @@ size_t strfindchar(char *s, char delim)
     for (i = 0; i < strlen(s); i++)
         if (s[i] == delim)
             break;
-    return (i == strlen(s)) ? -1 : i + 1;
+    return (i == strlen(s)) ? strlen(s) : i + 1;
 }
 
 char *strcut(char *s, size_t n)
 {
+    if (strlen(s) == n)
+        return 0;
+
     char *r = (char *)calloc(n);
     memcpy(r, s, n - 1);
     return r;
@@ -216,7 +219,7 @@ size_t strfindstr(char *s, char *delim)
         if (strncmp(delim, s + i, strlen(delim)) == 0)
             break;
     }
-    return (i == strlen(s) - strlen(delim)) ? -1 : i;
+    return (i == strlen(s) - strlen(delim)) ? strlen(s) : i;
 }
 
 char *itoa(uint32_t num, char *buf, uint8_t base)
