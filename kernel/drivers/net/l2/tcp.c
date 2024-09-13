@@ -422,9 +422,6 @@ void tcp_uninstall_listener(uint16_t port)
     tcp_port_listeners[port] = NULL;
 }
 
-// TODO: http.c http.h parsing and general request methods
-// TODO: testing
-
 void tcp_init()
 {
     dprintf("[TCP] init, calloc %f\n", 65536 * sizeof(tcp_listener));

@@ -18,6 +18,8 @@ typedef struct http_response {
     char *data;
 } http_response;
 
-bool http_send_request(network_device *netdev, uint32_t dip, uint16_t dport, char *host, char *path, tcp_listener listener);
+typedef bool (*http_listener)(network_device *driver, tcp_header *tcp, void *data, size_t data_size);
+
+bool http_send_request(network_device *netdev, uint32_t dip, uint16_t dport, char *host, char *path, http_listener listener);
 http_response *http_parse_response(void *data, size_t data_size);
 void http_free_response(http_response *resp);

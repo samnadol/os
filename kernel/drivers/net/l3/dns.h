@@ -23,6 +23,7 @@ enum DNSOpcode
 
 enum DNSType
 {
+    DNS_TYPE_NO_SUCH_NAME = 0,
     DNS_TYPE_A = 1,
     DNS_TYPE_NS = 2,
     DNS_TYPE_CNAME = 5,
@@ -83,6 +84,7 @@ typedef struct dns_answer
     uint8_t *data;
     char *domain;
     uint64_t created;
+    bool name_exists;
     struct dns_answer *next;
     struct dns_answer *prev;
 } dns_answer;

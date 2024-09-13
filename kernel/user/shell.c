@@ -59,6 +59,9 @@ void echo_listener(network_device *netdev, ip_header *ip, udp_header *udp, void 
 bool mock_http_recieve(network_device *driver, tcp_header *tcp, void *data, size_t data_size)
 {
     http_response *resp = http_parse_response(data, data_size);
+
+    printf("%s\n", resp->data);
+
     http_free_response(resp);
 
     return true;
@@ -183,7 +186,10 @@ void process_command(tty_interface *tty)
         dns_answer *res = dns_get_ip(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.dns, args->next->val, 10000);
         if (res)
         {
-            tprintf(tty, "%d.%d.%d.%d\n", res->data[0], res->data[1], res->data[2], res->data[3]);
+            if (res->name_exists)
+                tprintf(tty, "%d.%d.%d.%d\n", res->data[0], res->data[1], res->data[2], res->data[3]);
+            else
+                tprintf(tty, "name does not exist\n");
         }
         else
             tprintf(tty, "no response\n");
@@ -199,12 +205,19 @@ void process_command(tty_interface *tty)
         dns_answer *ans = dns_get_ip(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.dns, args->next->val, 5000);
         if (ans)
         {
-            ip = (ans->data[0] << 24) | (ans->data[1] << 16) | (ans->data[2] << 8) | (ans->data[3] << 0);
-            http_send_request(ethernet_first_netdev(), ip, 80, args->next->val, "/", &mock_http_recieve); // blocks until data is recieved or times out
+            if (ans->name_exists)
+            {
+                ip = (ans->data[0] << 24) | (ans->data[1] << 16) | (ans->data[2] << 8) | (ans->data[3] << 0);
+                http_send_request(ethernet_first_netdev(), ip, 80, args->next->val, "/", &mock_http_recieve); // blocks until data is recieved or times out
+            }
+            else
+            {
+                tprintf(tty, "[HTTP] domain does not exist\n");
+            }
         }
         else
         {
-            tprintf(tty, "[HTTP] could not get ip of domain\n");
+            tprintf(tty, "[HTTP] dns request timed out\n");
         }
         break;
     case COMMAND_GUI:

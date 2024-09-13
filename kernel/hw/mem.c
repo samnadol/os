@@ -3,6 +3,7 @@
 #include "../lib/string.h"
 #include "../user/status.h"
 #include "./timer.h"
+#include "../lib/random.h"
 
 #define MEM_1NODE_SIZE sizeof(mem_node_t)
 

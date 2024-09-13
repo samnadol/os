@@ -106,6 +106,7 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 	dns_init();
 
 	pci_init();
+    dhcp_init(ethernet_first_netdev());
 
 	// vga_switch_mode(VGA_GUI);
 	// gui_init();

@@ -59,16 +59,20 @@ void dhcp_process_ack(network_device *netdev, ip_header *ip, udp_header *udp, dh
         current_packet_opt += current_packet_opt[1] + 2;
     }
 
-    netdev->ip_c.dns = 0x01010101;
+    netdev->ip_c.dns = ip_to_uint(1, 1, 1, 1);
 
     // these will be used for any internet request but will probably expire (ttl 60s) before used and have to be re-requested, so no point in requesting them now
     // uint8_t mac[6];
     // arp_get_mac(netdev, netdev->ip_c.gateway, mac);
     // arp_get_mac(netdev, netdev->ip_c.dns, mac);
+
+    udp_uninstall_listener(68);
 }
 
 void dhcp_udp_listener(network_device *netdev, ip_header *ip, udp_header *udp, void *data, size_t data_size)
 {
+    dprintf("[DHCP] packet processing started\n");
+
     dhcp_packet *packet = (dhcp_packet *)data;
     switch (packet->op)
     {
@@ -82,9 +86,11 @@ void dhcp_udp_listener(network_device *netdev, ip_header *ip, udp_header *udp, v
                 switch (current_packet_op[2])
                 {
                 case DHCP_OP_OFFER:
+                    dprintf("[DHCP] got offer\n");
                     dhcp_process_offer(netdev, packet);
                     return;
                 case DHCP_OP_ACK:
+                    dprintf("[DHCP] got ack\n");
                     dhcp_process_ack(netdev, ip, udp, packet);
                     return;
                 }
@@ -246,6 +252,8 @@ bool dhcp_configuration_request(network_device *netdev, uint32_t timeout)
     if (netdev->ip_c.ip)
         return false;
 
+    offer_count = 0;
+
     udp_install_listener(68, dhcp_udp_listener);
     dhcp_send_discover(netdev);
 
@@ -271,10 +279,10 @@ bool dhcp_configuration_request(network_device *netdev, uint32_t timeout)
         {
             dprintf("[DHCP] offer for %i (not currently in use)\n", offers[i].offered_ip);
             dhcp_send_request(netdev, offers[i].server_ip, offers[i].offered_ip);
-            udp_uninstall_listener(68);
             return true;
         }
     }
+
     udp_uninstall_listener(68);
     return false;
 }

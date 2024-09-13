@@ -43,15 +43,18 @@ dns_answer *dns_cache_get(network_device *netdev, uint32_t dns_server_ip, char *
             else
             {
                 dprintf("[DNS] in cache\n");
-                switch (current->type)
-                {
-                case DNS_TYPE_A:
+                if (!(current->name_exists))
                     return current;
-                    break;
-                case DNS_TYPE_CNAME:
-                    return dns_get_ip(netdev, netdev->ip_c.dns, (char *)current->data, timeout);
-                    break;
-                }
+                else
+                    switch (current->type)
+                    {
+                    case DNS_TYPE_A:
+                        return current;
+                        break;
+                    case DNS_TYPE_CNAME:
+                        return dns_get_ip(netdev, netdev->ip_c.dns, (char *)current->data, timeout);
+                        break;
+                    }
             }
         }
         current = current->next;
@@ -134,7 +137,7 @@ size_t dns_response_read_domain(uint8_t *data, size_t start_offset, uint8_t **bu
 
     // calculate lengths, must do this before running string assembly or we won't know the length of the required string
     // inefficient to run this same loop & pointer jumping twice, but unless we want the possibility of buffer overflow if domain name is longer than buffer, required.
-    // per spec max length of domain is 253 char, but this keeps the malloc to the least size possible for a very small performance hit.
+    // per spec max length of domain is 253 char, but this keeps the malloc to the least size possible at the cost of a very small performance hit.
 
     while (data[i] != '\0')
     {
@@ -183,11 +186,8 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
 {
     dprintf("[DNS] got response, num q: %d, num a: %d\n", header->num_questions, header->num_answers);
 
-    if (header->flags.rcode == DNS_RCODE_NO_SUCH_NAME)
-        printf("[DNS] no such name\n");
-
-    if (header->flags.rcode != DNS_RCODE_NO_ERROR)
-        return;
+    if (header->flags.rcode != DNS_RCODE_NO_ERROR && header->flags.rcode != DNS_RCODE_NO_SUCH_NAME)
+        return; // return if error other than name not existing
 
     uint8_t *qna = (uint8_t *)calloc(data_len + 1);
     memcpy(qna, (uint8_t *)header + sizeof(dns_header), data_len); // copy useful dns data to new buffer
@@ -197,7 +197,18 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
     {
         uint8_t *domain = 0;
         i += dns_response_read_domain(qna, i, &domain) + 1;
-        mfree(domain);
+
+        if (header->flags.rcode == DNS_RCODE_NO_SUCH_NAME)
+        {
+            dns_answer *ans = (dns_answer *)calloc(sizeof(dns_answer));
+            ans->domain = (char *)domain;
+            dprintf("[DNS] got NSN response for %s\n", ans->domain);
+            ans->created = timer_get_epoch();
+            ans->ttl = 86400;
+            ans->next = 0;
+            ans->name_exists = false;
+            dns_cache_add(ans);
+        }
 
         // unused, uncomment to use and command i+=4;
         // uint16_t type = (qna[i] << 8) | (qna[i + 1]);
@@ -212,6 +223,10 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
         i += dns_response_read_domain(qna, i, &domain) + 1;
 
         dns_answer *ans = (dns_answer *)calloc(sizeof(dns_answer));
+        ans->domain = (char *)domain;
+        ans->created = timer_get_epoch();
+        ans->next = 0;
+
         memcpy(ans, qna + i, 10); // copy type, class, ttl, and len into dns_answer struct
         i += 10;
 
@@ -219,6 +234,7 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
         ans->class = ntohs(ans->class);
         ans->ttl = ntohl(ans->ttl) + 1;
         ans->len = ntohs(ans->len);
+        ans->name_exists = true;
 
         ans->data = (uint8_t *)calloc(ans->len);
         switch (ans->type)
@@ -232,10 +248,6 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
         }
         i += ans->len;
 
-        ans->domain = (char *)domain;
-        ans->created = timer_get_epoch();
-        ans->next = 0;
-
         switch (ans->type)
         {
         case DNS_TYPE_A:
@@ -245,7 +257,6 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
             dprintf("[DNS] got CNAME response for %s: %s type: %x class: %x ttl: %d\n", ans->domain, ans->data, ans->type, ans->class, ans->ttl);
             break;
         }
-
         dns_cache_add(ans);
     }
     mfree(qna);
@@ -274,15 +285,18 @@ void dns_print(tty_interface *tty)
     dns_answer *current = dns_cache;
     while (current)
     {
-        switch (current->type)
-        {
-        case DNS_TYPE_A:
-            tprintf(tty, "    A %s: %d.%d.%d.%d type: %x class: %x ttl: %d\n", current->domain, current->data[0], current->data[1], current->data[2], current->data[3], current->type, current->class, current->ttl);
-            break;
-        case DNS_TYPE_CNAME:
-            tprintf(tty, "CNAME %s: %s type: %x class: %x ttl: %d\n", current->domain, current->data, current->type, current->class, current->ttl);
-            break;
-        }
+        if (!(current->name_exists))
+            tprintf(tty, "   NSN %s: ttl: %d\n", current->domain, current->ttl);
+        else
+            switch (current->type)
+            {
+            case DNS_TYPE_A:
+                tprintf(tty, "     A %s: %d.%d.%d.%d type: %x class: %x ttl: %d\n", current->domain, current->data[0], current->data[1], current->data[2], current->data[3], current->type, current->class, current->ttl);
+                break;
+            case DNS_TYPE_CNAME:
+                tprintf(tty, " CNAME %s: %s type: %x class: %x ttl: %d\n", current->domain, current->data, current->type, current->class, current->ttl);
+                break;
+            }
         tprintf(tty, "\tcreated %d, expires %d, now %d\n", (uint32_t)current->created, (uint32_t)(current->created + current->ttl), (uint32_t)timer_get_epoch());
         current = current->next;
     }
@@ -299,16 +313,13 @@ dns_answer *dns_get_ip(network_device *netdev, uint32_t dns_server_ip, char *dom
     if (!dns_send_query(netdev, dns_server_ip, domain, DNS_TYPE_A))
         return 0;
 
-    for (size_t time = 0; time < timeout; time += 10)
+    for (size_t time = 0; !is_ctrlc() && time < timeout; time += 10)
     {
         timer_wait(10);
 
         dns_answer *check = dns_cache_get(netdev, dns_server_ip, domain, timeout);
         if (check)
             return check;
-
-        if (is_ctrlc())
-            break;
     }
 
     return 0;

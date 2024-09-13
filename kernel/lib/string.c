@@ -206,7 +206,7 @@ char *strrep(char *os, char *needle, char *replacement)
             ns_loc++;
         }
     }
-    ns[ns_loc - 1] = 0;
+    ns[ns_loc] = 0;
 
     return ns;
 }

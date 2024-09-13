@@ -23,18 +23,18 @@ run_cdrom_vmware: build/os.iso
 	vboxmanage startvm os
 
 run_cdrom_i386: build/os.iso
-	qemu-system-i386 -s -m 32M -device isa-vga \
+	qemu-system-i386 -s -m 32M \
 	-cdrom build/os.iso \
 	-object filter-dump,id=f1,netdev=eth,file=qemu-pktlog.pcap \
 	-netdev user,id=eth -device e1000,netdev=eth 
 
 run_kernel_x86_64: build/os.bin
-	qemu-system-x86_64 -s -m 32M -device isa-vga \
+	qemu-system-x86_64 -s -m 32M \
 	-kernel build/os.bin \
 	-netdev user,id=eth -device e1000,netdev=eth 
 
 run_cdrom_x86_64: build/os.iso
-	qemu-system-x86_64 -s -m 32M -device isa-vga \
+	qemu-system-x86_64 -s -m 32M \
 	-cdrom build/os.iso \
 	-netdev user,id=eth -device e1000,netdev=eth 
 

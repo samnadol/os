@@ -146,8 +146,6 @@ void ethernet_device_init(pci_device *pci)
 
     irq_register(IRQ0 + pci->int_line, ethernet_irq_handler);
     dev->int_enable(dev);
-
-    dhcp_init(dev);
 }
 
 network_device *ethernet_first_netdev()
