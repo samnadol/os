@@ -121,6 +121,9 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
 {
     dprintf("[DNS] got response, num q: %d, num a: %d\n", header->num_questions, header->num_answers);
 
+    if (header->flags.rcode == DNS_RCODE_NO_SUCH_NAME)
+        printf("[DNS] no such name\n");
+
     if (header->flags.rcode != DNS_RCODE_NO_ERROR)
         return;
 

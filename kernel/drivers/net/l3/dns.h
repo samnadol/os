@@ -11,7 +11,8 @@ enum DNSMessage
     DNS_MESSAGE_RESPONSE = 1,
 };
 
-#define DNS_RCODE_NO_ERROR 0
+#define DNS_RCODE_NO_ERROR 0b0000
+#define DNS_RCODE_NO_SUCH_NAME 0b0011
 
 enum DNSOpcode
 {

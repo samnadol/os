@@ -104,7 +104,7 @@ void *kmalloc(char *file, int line, size_t req_size)
         best->next->prev = mem_node_alloc;
     best->next = mem_node_alloc;
 
-    dprintf("[MEM] (%d) %s %d: malloc %p (%d b)\n", (uint32_t) timer_get_epoch(), file, line, ((uint8_t *)mem_node_alloc + MEM_1NODE_SIZE), req_size);
+    // dprintf("[MEM] (%d) %s %d: malloc %p (%d b)\n", (uint32_t) timer_get_epoch(), file, line, ((uint8_t *)mem_node_alloc + MEM_1NODE_SIZE), req_size);
 
     status_update();
     return (void *)((uint8_t *)mem_node_alloc + MEM_1NODE_SIZE);
@@ -134,7 +134,7 @@ void mfree(void *ptr)
         return;
 
     mem_node_t *free = (mem_node_t *)((uint8_t *)ptr - MEM_1NODE_SIZE);
-    dprintf("[MEM] free %p (%d b)\n", ptr, free->size);
+    // dprintf("[MEM] free %p (%d b)\n", ptr, free->size);
     ptr = NULL;
     
 

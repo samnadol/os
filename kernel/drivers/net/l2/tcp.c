@@ -24,6 +24,7 @@ typedef struct tcp_cache_entry
 tcp_cache_entry *tcp_cache;
 
 tcp_listener *tcp_port_listeners;
+tcp_datapart *tcp_dataparts;
 
 tcp_cache_entry *tcp_get_cache(uint16_t port)
 {
@@ -49,6 +50,99 @@ void tcp_remove_cache(uint16_t port)
     ce->next->prev = ce->prev;
 
     mfree(ce);
+}
+
+void tcp_add_datapart(uint32_t seqno, void *data, size_t data_length)
+{
+    tcp_datapart *c1 = tcp_dataparts;
+    while (c1)
+        if (c1->seqno != seqno)
+            c1 = c1->next;
+        else
+            break;
+
+    if (c1 && c1->seqno == seqno)
+    {
+        size_t newsize = c1->data_length + data_length;
+        void *newdata = calloc(newsize);
+        c1->num_parts++;
+
+        memcpy(newdata, c1->data, c1->data_length);
+        memcpy(newdata + c1->data_length - 1, data, data_length);
+        mfree(c1->data);
+
+        c1->data = newdata;
+        c1->data_length = newsize;
+    }
+    else
+    {
+        tcp_datapart *new = (tcp_datapart *)calloc(sizeof(tcp_datapart));
+        new->seqno = seqno;
+        new->next = 0;
+        new->num_parts = 1;
+
+        data_length += 1; // add room for null termination
+        new->data = calloc(data_length);
+        new->data_length = data_length;
+        memcpy(new->data, data, data_length);
+
+        if (!tcp_dataparts)
+        {
+            tcp_dataparts = new;
+        }
+        else
+        {
+            tcp_datapart *c2 = tcp_dataparts;
+            while (c2->next)
+                c2 = c2->next;
+
+            new->prev = c2;
+            c2->next = new;
+        }
+    }
+}
+
+tcp_datapart *tcp_get_datapart(uint32_t seqno)
+{
+    tcp_datapart *c1 = tcp_dataparts;
+    while (c1)
+        if (c1->seqno != seqno)
+            c1 = c1->next;
+        else
+            break;
+
+    if (c1 && c1->seqno == seqno)
+        return c1;
+    else
+        return 0;
+}
+
+void tcp_delete_datapart(uint32_t seqno)
+{
+    tcp_datapart *c1 = tcp_dataparts;
+    while (c1)
+        if (c1->seqno != seqno)
+            c1 = c1->next;
+        else
+            break;
+
+    if (c1 && c1->seqno == seqno)
+    {
+        if (c1 == tcp_dataparts)
+        {
+            // first
+            tcp_dataparts = c1->next;
+            c1->next->prev = 0;
+            mfree(c1);
+        }
+        else
+        {
+            // not first
+            c1->prev->next = c1->next;
+            c1->next->prev = c1->prev;
+            mfree(c1);
+        }
+    }
 }
 
 uint16_t tcp_calculate_checksum(tcp_header *header, uint32_t sip, uint32_t dip, void *payload, size_t payload_size)
@@ -174,7 +268,7 @@ void tcp_receive_packet(network_device *netdev, ip_header *ip, tcp_header *tcp, 
         return;
     }
 
-    if (tcp->flags.psh) // DATA
+    if (tcp->flags.psh) // DATA END
     {
         if (tcp_port_listeners[tcp->dport])
         {
@@ -184,16 +278,23 @@ void tcp_receive_packet(network_device *netdev, ip_header *ip, tcp_header *tcp, 
                 ce->seq = ntohl(tcp->ackno);
                 ce->ack = ntohl(tcp->seqno) + payload_len;
 
-                dprintf("[TCP] got data packet\n");
+                if (payload_len > 0)
+                    tcp_add_datapart(ce->seq, payload, payload_len);
+                // printf("[TCP] PSH seq %d, ack %d, len %d\n", ntohl(tcp->seqno), ntohl(tcp->ackno), payload_len);
+
+                tcp_datapart *complete_data = tcp_get_datapart(ce->seq);
+                dprintf("[TCP] finished data packet, len %d, %d parts\n", complete_data->data_length, complete_data->num_parts);
                 tcp_listener listener = tcp_port_listeners[tcp->dport];
-                listener(netdev, tcp, payload, payload_len);
+                listener(netdev, tcp, complete_data->data, complete_data->data_length);
+                tcp_delete_datapart(ce->seq);
+
                 tcp_send_packet(netdev, netdev->ip_c.ip, tcp->dport, ntohl(ip->sip), tcp->sport, ce->seq, ce->ack, false, true, false, false, NULL, 0);
             }
         }
         return;
     }
 
-    if (tcp->flags.ack) // ACK
+    if (tcp->flags.ack) // ACK / DATA PART
     {
         tcp_cache_entry *ce = tcp_get_cache(tcp->dport);
         if (ce)
@@ -202,7 +303,10 @@ void tcp_receive_packet(network_device *netdev, ip_header *ip, tcp_header *tcp, 
             {
                 ce->ack = ntohl(tcp->seqno);
                 ce->seq = ntohl(tcp->ackno);
-                // printf("[TCP] ACK seq %d, ack %d\n", ntohl(tcp->seqno), ntohl(tcp->ackno));
+
+                if (payload_len > 0)
+                    tcp_add_datapart(ce->seq, payload, payload_len);
+                // printf("[TCP] ACK seq %d, ack %d, len %d\n", ntohl(tcp->seqno), ntohl(tcp->ackno), payload_len);
             }
             else
             {

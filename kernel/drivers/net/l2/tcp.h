@@ -38,6 +38,18 @@ typedef struct __attribute__((packed, aligned(1))) tcp_header
     uint16_t urgent_pointer;
 } tcp_header;
 
+typedef struct tcp_datapart
+{
+    uint32_t seqno;
+    uint8_t num_parts;
+
+    void *data;
+    size_t data_length;
+
+    struct tcp_datapart *next;
+    struct tcp_datapart *prev;
+} tcp_datapart;
+
 typedef bool (*tcp_listener)(network_device *, tcp_header *, void *, size_t);
 
 void tcp_init();

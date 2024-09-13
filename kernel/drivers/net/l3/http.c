@@ -17,19 +17,24 @@ void http_free_response(http_response *resp)
 http_response *http_parse_response(void *data, size_t data_size)
 {
     http_response *ret = (http_response *)calloc(sizeof(http_response));
-
     size_t firstnlloc = strfindchar(data, '\n');
     size_t contentstart = strfindstr(data, "\r\n\r\n");
 
     ret->response_string = strcut(data, firstnlloc);
 
-    char *respdata = (char *)calloc(strlen(data) - contentstart - strlen("\r\n\r\n"));
-    memcpy(respdata, data + contentstart + strlen("\r\n\r\n"), strlen(data) - contentstart - strlen("\r\n\r\n"));
+    size_t resplen = strlen(data) - contentstart - strlen("\r\n\r\n");
+    char *respdata = (char *)calloc(resplen);
+    memcpy(respdata, data + contentstart + strlen("\r\n\r\n"), resplen);
+    respdata[resplen + 1] = 0;
 
     ret->data = strrep(respdata, "\r\n", "\n");
+    
     printf("%s\n", ret->data);
+    // for (size_t i = 0; i < strlen(ret->data) + 1; i++)
+    //     printf("%d %c\n", ret->data[i], ret->data[i]);
 
     mfree(respdata);
+    mfree(data);
 
     return ret;
 }

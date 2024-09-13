@@ -58,8 +58,8 @@ void echo_listener(network_device *netdev, ip_header *ip, udp_header *udp, void 
 
 bool mock_http_recieve(network_device *driver, tcp_header *tcp, void *data, size_t data_size)
 {
-    // http_response *resp = http_parse_response(data, data_size);
-    // http_free_response(resp);
+    http_response *resp = http_parse_response(data, data_size);
+    http_free_response(resp);
 
     return true;
 }
