@@ -201,14 +201,22 @@ void process_command(tty_interface *tty)
             break;
         }
 
+        size_t firstslash = strfindchar(args->next->val, '/');
+        char *domain = strcut(args->next->val, firstslash);
+        char *path = args->next->val + firstslash - 1;
+        if (strlen(args->next->val) == firstslash) {
+            domain = args->next->val;
+            path = "/";
+        }
+
         uint32_t ip = 0;
-        dns_answer *ans = dns_get_ip(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.dns, args->next->val, 5000);
+        dns_answer *ans = dns_get_ip(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.dns, domain, 5000);
         if (ans)
         {
             if (ans->name_exists)
             {
                 ip = (ans->data[0] << 24) | (ans->data[1] << 16) | (ans->data[2] << 8) | (ans->data[3] << 0);
-                http_send_request(ethernet_first_netdev(), ip, 80, args->next->val, "/", &mock_http_recieve); // blocks until data is recieved or times out
+                http_send_request(ethernet_first_netdev(), ip, 80, domain, path, &mock_http_recieve); // blocks until data is recieved or times out
             }
             else
             {
@@ -219,6 +227,8 @@ void process_command(tty_interface *tty)
         {
             tprintf(tty, "[HTTP] dns request timed out\n");
         }
+
+        mfree(domain);
         break;
     case COMMAND_GUI:
         if (tty->type == TTYType_VGA)

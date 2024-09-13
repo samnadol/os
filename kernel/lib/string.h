@@ -34,6 +34,7 @@ bool char_is_number(char c);
 
 // converts num to a string, using base base and outputting into buf. buf must be big enough to hold the result
 char *itoa(uint32_t num, char *buf, uint8_t base);
+int32_t atoi(char *s);
 // converts size into a human readable size (eg 1G, 32M), placing the result in to buf. will not fill characters past bufsize
 char *human_readable_size(uint64_t size, char *buf, int bufsize);
 

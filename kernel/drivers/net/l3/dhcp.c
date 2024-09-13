@@ -9,6 +9,7 @@
 #include "../../../hw/cpu/system.h"
 #include "../../../lib/bits.h"
 #include "../../../hw/timer.h"
+#include "../../../lib/random.h"
 
 typedef struct dhcp_offer
 {
@@ -104,7 +105,7 @@ void dhcp_udp_listener(network_device *netdev, ip_header *ip, udp_header *udp, v
     }
 }
 
-bool dhcp_send_discover(network_device *netdev)
+bool dhcp_send_discover(network_device *netdev, uint32_t xid)
 {
     dhcp_packet *packet = (dhcp_packet *)calloc(sizeof(dhcp_packet));
     if (!packet)
@@ -113,7 +114,7 @@ bool dhcp_send_discover(network_device *netdev)
     packet->op = DHCP_BOOT_OP_REQUEST;
     packet->htype = DHCP_HTYPE_ETHERNET;
     packet->hlen = 6;
-    packet->xid = htonl(0x12345678);
+    packet->xid = htonl(xid);
 
     packet->ciaddr = 0;
     packet->yiaddr = 0;
@@ -149,7 +150,7 @@ bool dhcp_send_discover(network_device *netdev)
     return res;
 }
 
-bool dhcp_send_request(network_device *netdev, uint32_t server_ip, uint32_t requested_ip)
+bool dhcp_send_request(network_device *netdev, uint32_t server_ip, uint32_t requested_ip, uint32_t xid)
 {
     dhcp_packet *packet = (dhcp_packet *)calloc(sizeof(dhcp_packet));
     if (!packet)
@@ -161,7 +162,7 @@ bool dhcp_send_request(network_device *netdev, uint32_t server_ip, uint32_t requ
     packet->htype = DHCP_HTYPE_ETHERNET;
     packet->hlen = 6;
     packet->hops = 0;
-    packet->xid = htonl(0x12345678);
+    packet->xid = htonl(xid);
     packet->secs = htons(0);
     packet->flags = htons(0);
 
@@ -254,8 +255,10 @@ bool dhcp_configuration_request(network_device *netdev, uint32_t timeout)
 
     offer_count = 0;
 
+    uint32_t xid = rand(UINT32_MAX);
+
     udp_install_listener(68, dhcp_udp_listener);
-    dhcp_send_discover(netdev);
+    dhcp_send_discover(netdev, xid);
 
     uint32_t ms_waited = 0;
     while (offer_count < 1)
@@ -278,7 +281,7 @@ bool dhcp_configuration_request(network_device *netdev, uint32_t timeout)
         else
         {
             dprintf("[DHCP] offer for %i (not currently in use)\n", offers[i].offered_ip);
-            dhcp_send_request(netdev, offers[i].server_ip, offers[i].offered_ip);
+            dhcp_send_request(netdev, offers[i].server_ip, offers[i].offered_ip, xid);
             return true;
         }
     }

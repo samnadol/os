@@ -1,5 +1,6 @@
 #include "string.h"
 
+#include "math.h"
 #include "../hw/mem.h"
 #include "../hw/cpu/system.h"
 
@@ -220,6 +221,25 @@ size_t strfindstr(char *s, char *delim)
             break;
     }
     return (i == strlen(s) - strlen(delim)) ? strlen(s) : i;
+}
+
+int32_t atoi(char *s)
+{
+    int slen = strlen(s);
+
+    int32_t output = 0;
+    for (size_t i = 0; i < slen; i++)
+    {
+        if (!char_is_number(s[i]))
+        {
+            if (output == 0)
+                continue;
+            else
+                break;
+        }
+        output += (s[i] - '0') * pow(10, slen - i - 1);
+    }
+    return output;
 }
 
 char *itoa(uint32_t num, char *buf, uint8_t base)
