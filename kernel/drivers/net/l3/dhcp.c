@@ -49,15 +49,17 @@ void dhcp_process_ack(network_device *netdev, ip_header *ip, udp_header *udp, dh
         case DHCP_OPTION_ROUTER:
             netdev->ip_c.gateway = (current_packet_opt[5] | current_packet_opt[4] << 8 | current_packet_opt[3] << 16 | current_packet_opt[2] << 24);
             break;
-        case DHCP_OPTION_DNS_SERVER:
-            netdev->ip_c.dns = (current_packet_opt[5] | current_packet_opt[4] << 8 | current_packet_opt[3] << 16 | current_packet_opt[2] << 24);
-            break;
+        // case DHCP_OPTION_DNS_SERVER:
+        //     netdev->ip_c.dns = (current_packet_opt[5] | current_packet_opt[4] << 8 | current_packet_opt[3] << 16 | current_packet_opt[2] << 24);
+        //     break;
         case DHCP_OPTION_LEASE_TIME:
             netdev->ip_c.lease_time = (current_packet_opt[5] | current_packet_opt[4] << 8 | current_packet_opt[3] << 16 | current_packet_opt[2] << 24);
             break;
         }
         current_packet_opt += current_packet_opt[1] + 2;
     }
+
+    netdev->ip_c.dns = 0x01010101;
 
     // these will be used for any internet request but will probably expire (ttl 60s) before used and have to be re-requested, so no point in requesting them now
     // uint8_t mac[6];

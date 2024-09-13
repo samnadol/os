@@ -14,6 +14,68 @@ size_t dns_id;
 
 dns_answer *dns_cache;
 
+void dns_cache_remove(dns_answer *ans)
+{
+    if (ans == dns_cache) // if first entry, then set first entry to next entry
+        dns_cache = ans->next;
+    else // if not first entry, then set previous entry's next to next
+        ans->prev->next = ans->next;
+    ans->next->prev = ans->prev;
+
+    mfree(ans->domain);
+    mfree(ans);
+}
+
+dns_answer *dns_cache_get(network_device *netdev, uint32_t dns_server_ip, char *domain, size_t timeout)
+{
+    dns_answer *current = dns_cache;
+    while (current)
+    {
+        if (strcmp(current->domain, domain) == 0)
+        {
+            // domain matches, check ttl expiry
+            if ((uint32_t)(timer_get_epoch() - current->created) > current->ttl)
+            {
+                // expired
+                dprintf("[DNS] %s in cache but expired, removing\n", domain);
+                dns_cache_remove(current);
+            }
+            else
+            {
+                dprintf("[DNS] in cache\n");
+                switch (current->type)
+                {
+                case DNS_TYPE_A:
+                    return current;
+                    break;
+                case DNS_TYPE_CNAME:
+                    return dns_get_ip(netdev, netdev->ip_c.dns, (char *)current->data, timeout);
+                    break;
+                }
+            }
+        }
+        current = current->next;
+    }
+
+    return 0;
+}
+
+void dns_cache_add(dns_answer *ans)
+{
+    if (!dns_cache)
+    {
+        dns_cache = ans;
+    }
+    else
+    {
+        dns_answer *current = dns_cache;
+        while (current->next)
+            current = current->next;
+        ans->prev = current;
+        current->next = ans;
+    }
+}
+
 bool dns_send_query(network_device *netdev, uint32_t dns_server_ip, const char *domain_name, int type)
 {
     strlower((char *)domain_name);
@@ -67,7 +129,7 @@ size_t dns_response_read_domain(uint8_t *data, size_t start_offset, uint8_t **bu
 {
     bool physical_len_done = false;
     size_t physical_len = 0; // length of data in response (num char + physical size of pointer (2 byte))
-    size_t string_len = 0; // length of data, calculated (num char total, following all pointers)
+    size_t string_len = 0;   // length of data, calculated (num char total, following all pointers)
     size_t i = start_offset;
 
     // calculate lengths, must do this before running string assembly or we won't know the length of the required string
@@ -101,13 +163,13 @@ size_t dns_response_read_domain(uint8_t *data, size_t start_offset, uint8_t **bu
     size_t str_pos = 0;
     while (data[i] != '\0')
     {
-        if ((((data[i] << 8) | data[i + i]) & 0xC000) != 0) // per spec, if top two bits are 1, is pointer
+        if ((((data[i] << 8) | data[i + i]) & 0xC000) != 0)                     // per spec, if top two bits are 1, is pointer
             i = (((data[i] << 8) | data[i + 1]) & 0x3FFF) - sizeof(dns_header); // jump to pointed address
         else
         {
             for (int j = 1; j < data[i] + 1; j++)
                 (*buffer)[str_pos++] = data[i + j]; // add chars from string to buffer
-            (*buffer)[str_pos++] = '.'; // add dot domain separator after all chars from this portion of domain
+            (*buffer)[str_pos++] = '.';             // add dot domain separator after all chars from this portion of domain
             i += data[i] + 1;
         }
     }
@@ -152,7 +214,7 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
 
         ans->type = ntohs(ans->type);
         ans->class = ntohs(ans->class);
-        ans->ttl = ntohl(ans->ttl);
+        ans->ttl = ntohl(ans->ttl) + 1;
         ans->len = ntohs(ans->len);
 
         ans->data = (uint8_t *)calloc(ans->len);
@@ -181,18 +243,7 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
             break;
         }
 
-        if (!dns_cache)
-        {
-            dns_cache = ans;
-        }
-        else
-        {
-            dns_answer *current = dns_cache;
-            while (current->next)
-                current = current->next;
-            ans->prev = current;
-            current->next = ans;
-        }
+        dns_cache_add(ans);
     }
     mfree(qna);
 }
@@ -236,42 +287,10 @@ void dns_print(tty_interface *tty)
 
 dns_answer *dns_get_ip(network_device *netdev, uint32_t dns_server_ip, char *domain, size_t timeout)
 {
-    dns_answer *current = dns_cache;
-    while (current)
-    {
-        if (strcmp(current->domain, domain) == 0)
-        {
-            // domain matches, check ttl expiry
-            if ((uint32_t)(timer_get_epoch() - current->created) > current->ttl)
-            {
-                // expired
-                dprintf("[DNS] %s in cache but expired, removing\n", domain);
+    dns_answer *cached = dns_cache_get(netdev, dns_server_ip, domain, timeout);
 
-                if (current == dns_cache) // if first entry, then set first entry to next entry
-                    dns_cache = current->next;
-                else // if not first entry, then set previous entry's next to next
-                    current->prev->next = current->next;
-                current->next->prev = current->prev;
-
-                mfree(current->domain);
-                mfree(current);
-            }
-            else
-            {
-                dprintf("[DNS] in cache\n");
-                switch (current->type)
-                {
-                case DNS_TYPE_A:
-                    return current;
-                    break;
-                case DNS_TYPE_CNAME:
-                    return dns_get_ip(netdev, netdev->ip_c.dns, (char *)current->data, timeout);
-                    break;
-                }
-            }
-        }
-        current = current->next;
-    }
+    if (cached)
+        return cached;
 
     dprintf("[DNS] %s not in cache\n", domain);
     if (!dns_send_query(netdev, dns_server_ip, domain, DNS_TYPE_A))
@@ -281,23 +300,9 @@ dns_answer *dns_get_ip(network_device *netdev, uint32_t dns_server_ip, char *dom
     {
         timer_wait(10);
 
-        dns_answer *current = dns_cache;
-        while (current)
-        {
-            if (strcmp(current->domain, domain) == 0)
-            {
-                switch (current->type)
-                {
-                case DNS_TYPE_A:
-                    return current;
-                    break;
-                case DNS_TYPE_CNAME:
-                    return dns_get_ip(netdev, netdev->ip_c.dns, (char *)current->data, timeout);
-                    break;
-                }
-            }
-            current = current->next;
-        }
+        dns_answer *check = dns_cache_get(netdev, dns_server_ip, domain, timeout);
+        if (check)
+            return check;
 
         if (is_ctrlc())
             break;
