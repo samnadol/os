@@ -43,7 +43,7 @@ size_t putc(tty_interface *interface, TTYColor color, char c);
 void delc(tty_interface *interface);
 
 void printf(const char *fmt, ...);
-void dprintf(const char *fmt, ...);
+void dprintf(uint8_t debuglevel, const char *fmt, ...);
 void tprintf(tty_interface *tty, const char *fmt, ...);
 void cprintf(TTYColor color, const char *fmt, ...);
 void ctprintf(tty_interface *tty, TTYColor color, const char *fmt, ...);

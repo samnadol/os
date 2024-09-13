@@ -63,7 +63,7 @@ uint8_t mouse_read()
 
 void mouse_init()
 {
-    dprintf("[MSE] Initializing\n");
+    dprintf(0, "[MSE] Initializing\n");
 
     uint8_t status;
 

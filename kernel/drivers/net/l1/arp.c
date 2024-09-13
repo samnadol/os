@@ -40,7 +40,7 @@ void arp_print(tty_interface *tty)
 
 bool arp_send_request(network_device *netdev, uint32_t ip)
 {
-    dprintf("[ARP] sending request for %i\n", ip);
+    dprintf(3, "[ARP] sending request for %i\n", ip);
 
     arp_packet *packet = (arp_packet *)malloc(sizeof(arp_packet));
     packet->hardware_type = htons(ARP_HW_ETHERNET);
@@ -128,7 +128,7 @@ bool arp_get_mac(network_device *netdev, uint32_t ip, uint8_t mac[6])
             if ((uint32_t)(timer_get_epoch() - current->created) > current->ttl)
             {
                 // expired
-                dprintf("[ARP] cached mac for %i is expired\n", ip);
+                dprintf(3, "[ARP] cached mac for %i is expired\n", ip);
 
                 if (current == arp_cache) // if first entry, then set first entry to next entry
                     arp_cache = current->next;
@@ -141,7 +141,7 @@ bool arp_get_mac(network_device *netdev, uint32_t ip, uint8_t mac[6])
             }
             else
             {
-                dprintf("[ARP] cached mac for %i is %m\n", ip, current->mac);
+                dprintf(3, "[ARP] cached mac for %i is %m\n", ip, current->mac);
                 memcpy(mac, current->mac, 6);
                 return true;
             }
@@ -175,7 +175,7 @@ void arp_process_request(network_device *netdev, arp_packet *packet)
 
 void arp_process_reply(network_device *netdev, arp_packet *packet)
 {
-    dprintf("[ARP] got reply for %i -> %m\n", ntohl(packet->sip), packet->smac);
+    dprintf(3, "[ARP] got reply for %i -> %m\n", ntohl(packet->sip), packet->smac);
     if (!arp_has_ip(ntohl(packet->sip)))
     {
         struct arp_entry *arp_entry = (struct arp_entry *)malloc(sizeof(struct arp_entry));

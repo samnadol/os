@@ -64,6 +64,6 @@ void keyboard_handler(registers_t *regs)
 
 void keyboard_init()
 {
-    dprintf("[KB] Initializing\n");
+    dprintf(0, "[KB] Initializing\n");
     irq_register(IRQ1, keyboard_handler);
 }

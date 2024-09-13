@@ -38,7 +38,7 @@ inline uint32_t e1000_read32(network_device *dev, uint16_t p_address)
 
 void e1000_int_enable(network_device *netdev)
 {
-    dprintf("[e1000] Enabling interrupts\n");
+    dprintf(1, "[e1000] Enabling interrupts\n");
 
     e1000_write32(
         netdev, E1000_REG_IMS,
@@ -53,7 +53,7 @@ void e1000_int_enable(network_device *netdev)
 
 void e1000_int_disable(network_device *netdev)
 {
-    dprintf("[e1000] Disabling interrupts\n");
+    dprintf(1, "[e1000] Disabling interrupts\n");
 
     e1000_write32(netdev, E1000_REG_IMC, 0xFFFFFFFF);
     e1000_write32(netdev, E1000_REG_ICR, 0xFFFFFFFF);
@@ -126,7 +126,7 @@ bool e1000_read_mac(network_device *dev)
 
 void e1000_rx_init(network_device *dev)
 {
-    dprintf("[e1000] rx init, calloc %f\n", (sizeof(e1000_rx_desc) * NUM_RX_DESC + 16) + (NUM_RX_DESC * (8192 + 16)));
+    dprintf(1, "[e1000] rx init, calloc %f\n", (sizeof(e1000_rx_desc) * NUM_RX_DESC + 16) + (NUM_RX_DESC * (8192 + 16)));
 
     for (int i = 0; i < 128; i++)
     {
@@ -169,7 +169,7 @@ void e1000_rx_init(network_device *dev)
 
 void e1000_tx_init(network_device *dev)
 {
-    dprintf("[e1000] tx init, calloc %f\n", sizeof(e1000_tx_desc) * NUM_TX_DESC + 16);
+    dprintf(1, "[e1000] tx init, calloc %f\n", sizeof(e1000_tx_desc) * NUM_TX_DESC + 16);
 
     e1000_tx_desc *tx_buf = (e1000_tx_desc *)(calloc_align(sizeof(e1000_tx_desc) * NUM_TX_DESC + 16, 16));
     if (!tx_buf)
@@ -206,7 +206,7 @@ void e1000_read_link_status(network_device *dev)
     uint8_t link_up = (status >> 1) & 1;
     uint8_t speed = (status >> 6) & 3;
 
-    dprintf("[e1000] Link is %s, %s duplex, %u mbps\n", (link_up ? "up" : "down"), (duplex ? "full" : "half"), (speed == 0 ? 10 : (speed == 1 ? 100 : ((speed == 2 || speed == 3) ? 1000 : 0))));
+    dprintf(1, "[e1000] Link is %s, %s duplex, %u mbps\n", (link_up ? "up" : "down"), (duplex ? "full" : "half"), (speed == 0 ? 10 : (speed == 1 ? 100 : ((speed == 2 || speed == 3) ? 1000 : 0))));
 }
 
 e1000_tx_desc *e1000_write_transmit_descriptor(network_device *driver, unsigned int ptr, void *addr, size_t packet_size, uint8_t cso, uint8_t cmd, uint8_t status, uint8_t css)
@@ -244,7 +244,7 @@ bool e1000_read_receive_descriptor(network_device *driver, unsigned int ptr)
 
     if (descriptor->errors)
     {
-        dprintf("[e1000] Packet has errors: %x\n", descriptor->errors);
+        dprintf(0, "[e1000] Packet has errors: %x\n", descriptor->errors);
         return true;
     }
 
@@ -252,7 +252,7 @@ bool e1000_read_receive_descriptor(network_device *driver, unsigned int ptr)
     {
         if (!ISSET_BIT_INT(descriptor->status, E1000_REGBIT_RXD_STAT_EOP))
         {
-            dprintf("[e1000] Packet not supported\n");
+            dprintf(1, "[e1000] Packet not supported\n");
             return true;
         }
 
@@ -326,7 +326,7 @@ void e1000_int_handle(network_device *netdev, registers_t *r)
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_RXSEQ))
     {
-        dprintf("Receive sequence error\n");
+        dprintf(0, "Receive sequence error\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_RXDMT0))
@@ -336,7 +336,7 @@ void e1000_int_handle(network_device *netdev, registers_t *r)
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_RXO))
     {
-        dprintf("Receive overrun\n");
+        dprintf(0, "Receive overrun\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_RXT0))
@@ -348,22 +348,22 @@ void e1000_int_handle(network_device *netdev, registers_t *r)
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_MDAC))
     {
-        dprintf("MDIO access complete\n");
+        dprintf(0, "MDIO access complete\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_RXCFG))
     {
-        dprintf("Receive config\n");
+        dprintf(0, "Receive config\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_PHYINT))
     {
-        dprintf("PHY interrupt\n");
+        dprintf(0, "PHY interrupt\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_GPI))
     {
-        dprintf("GPI\n");
+        dprintf(0, "GPI\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_TXD_LOW))
@@ -373,7 +373,7 @@ void e1000_int_handle(network_device *netdev, registers_t *r)
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_SRPD))
     {
-        dprintf("Small receive packet detected\n");
+        dprintf(0, "Small receive packet detected\n");
     }
 }
 
@@ -391,9 +391,9 @@ network_device *e1000_init(pci_device *pci)
     netdev->int_disable = &e1000_int_disable;
     netdev->int_handle = &e1000_int_handle;
 
-    dprintf("[e1000] Net driver init for dev at MEMBAR: %x, IOBAR: ", pci->mem_base);
-    dprintf("%x, BAR0 Type: ", pci->io_base);
-    dprintf("%x\n", pci->bar_type);
+    dprintf(0, "[e1000] Net driver init for dev at MEMBAR: %x, IOBAR: ", pci->mem_base);
+    dprintf(0, "%x, BAR0 Type: ", pci->io_base);
+    dprintf(0, "%x\n", pci->bar_type);
 
     e1000_reset(netdev);
     e1000_write32(netdev, E1000_REG_EECD, E1000_REGBIT_EECD_SK | E1000_REGBIT_EECD_CS | E1000_REGBIT_EECD_DI);
@@ -402,7 +402,7 @@ network_device *e1000_init(pci_device *pci)
     if (!e1000_read_mac(netdev))
         return NULL;
 
-    dprintf("[e1000] MAC Address: %m\n", netdev->mac);
+    dprintf(0, "[e1000] MAC Address: %m\n", netdev->mac);
 
     e1000_write32(netdev, E1000_REG_FCAL, 0);
     e1000_write32(netdev, E1000_REG_FCAH, 0);
@@ -431,11 +431,11 @@ network_device *e1000_init(pci_device *pci)
 
         if (ms_elapsed > E1000_LINKUP_TIMEOUT)
         {
-            dprintf("[e1000] Device did not come up in time\n");
+            dprintf(0, "[e1000] Device did not come up in time\n");
             return 0;
         }
     }
-    dprintf("[e1000] Configuration done\n");
+    dprintf(1, "[e1000] Configuration done\n");
 
     return netdev;
 }

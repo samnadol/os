@@ -7,7 +7,7 @@ static bool interrupts_ever_enabled = false;
 
 void interrupts_enable()
 {
-    dprintf("[INT] Interrupts enabled\n");
+    dprintf(0, "[INT] Interrupts enabled\n");
     asm volatile("sti");
     interrupts_ever_enabled = true;
 }

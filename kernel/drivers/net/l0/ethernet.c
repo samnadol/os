@@ -23,7 +23,7 @@ bool ethernet_send_packet(network_device *dev, uint8_t dmac[6], enum EtherType e
     if (!packet)
         panic("calloc failed (ethernet_send_packet 2)");
 
-    dprintf("[ETH] sending packet to %m\n", dmac);
+    dprintf(2, "[ETH] sending packet to %m\n", dmac);
 
     memcpy(packet->header.source_mac, dev->mac, 6);
     memcpy(packet->header.destination_mac, dmac, 6);
@@ -39,7 +39,7 @@ bool ethernet_send_packet(network_device *dev, uint8_t dmac[6], enum EtherType e
 
 void ethernet_receive_packet(network_device *driver, ethernet_packet *packet, size_t data_size)
 {
-    dprintf("[ETH] got packet for %m\n", packet->header.destination_mac);
+    dprintf(2, "[ETH] got packet for %m\n", packet->header.destination_mac);
     switch (ntohs(packet->header.ethertype))
     {
     case ETHERTYPE_ARP:
@@ -64,7 +64,7 @@ void ethernet_irq_handler(registers_t *r)
 
 void ethernet_irq_enable()
 {
-    dprintf("[ETH] Enabling IRQs for all NICs\n");
+    dprintf(2, "[ETH] Enabling IRQs for all NICs\n");
     for (int i = 0; i < NUM_ETHERNET_DEVICE; i++)
         if (devs[i])
             devs[i]->int_enable(devs[i]);
@@ -72,7 +72,7 @@ void ethernet_irq_enable()
 
 void ethernet_irq_disable()
 {
-    dprintf("[ETH] Disabling IRQs for all NICs\n");
+    dprintf(2, "[ETH] Disabling IRQs for all NICs\n");
     for (int i = 0; i < NUM_ETHERNET_DEVICE; i++)
         if (devs[i])
             devs[i]->int_disable(devs[i]);
@@ -85,7 +85,7 @@ bool ethernet_assign_slot(network_device *dev)
         if (!devs[i])
         {
             devs[i] = dev;
-            dprintf("[ETH] Assigned ethernet driver to interface %d\n", i);
+            dprintf(2, "[ETH] Assigned ethernet driver to interface %d\n", i);
             return true;
         }
     }
@@ -95,7 +95,7 @@ bool ethernet_assign_slot(network_device *dev)
 
 void ethernet_device_init(pci_device *pci)
 {
-    dprintf("[ETH] NIC init %x:%x, int line 0x%x\n", pci->vendor, pci->device, pci->int_line);
+    dprintf(2, "[ETH] NIC init %x:%x, int line 0x%x\n", pci->vendor, pci->device, pci->int_line);
 
     network_device *dev = NULL;
     switch (pci->vendor)
@@ -110,7 +110,7 @@ void ethernet_device_init(pci_device *pci)
             dev = e1000_init(pci);
             break;
         default:
-            dprintf("[ETH] Unknown Intel NIC\n");
+            dprintf(2, "[ETH] Unknown Intel NIC\n");
         }
         break;
     // case RTL8139_VEND:
@@ -120,11 +120,11 @@ void ethernet_device_init(pci_device *pci)
     //         dev = rtl8139_init(pci);
     //         break;
     //     default:
-    //         dprintf("[ETH] Unknown Realtek NIC\n");
+    //         dprintf(2, "[ETH] Unknown Realtek NIC\n");
     //     }
     //     break;
     default:
-        dprintf("[ETH] Unknown NIC\n");
+        dprintf(2, "[ETH] Unknown NIC\n");
     }
 
     if (dev == NULL)
@@ -138,11 +138,11 @@ void ethernet_device_init(pci_device *pci)
 
     if (!ethernet_assign_slot(dev))
     {
-        dprintf("[ETH] Too many network devices!\n");
+        dprintf(2, "[ETH] Too many network devices!\n");
         return;
     }
 
-    dprintf("[ETH] NIC configuration done\n");
+    dprintf(2, "[ETH] NIC configuration done\n");
 
     irq_register(IRQ0 + pci->int_line, ethernet_irq_handler);
     dev->int_enable(dev);

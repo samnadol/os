@@ -202,9 +202,12 @@ void printf(const char *fmt, ...)
     va_end(a2);
 }
 
-void dprintf(const char *fmt, ...)
+void dprintf(uint8_t debuglevel, const char *fmt, ...)
 {
     if (!serial_get_tty())
+        return;
+
+    if (debuglevel > 0)
         return;
         
     va_list a1, a2;

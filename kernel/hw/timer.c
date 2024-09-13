@@ -50,7 +50,7 @@ void timer_phase(int hz)
 
 void timer_init()
 {
-    dprintf("[TMR] Initializing\n");
+    dprintf(0, "[TMR] Initializing\n");
     timer_phase(TIMER_HZ);
     irq_register(IRQ0, timer_irq);
 }

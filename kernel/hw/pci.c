@@ -115,7 +115,7 @@ void init_device(pci_device *dev, void (*driver_init)(pci_device *dev))
 {
     if (!pci_enable(dev))
     {
-        dprintf("Failed to enable device\n");
+        dprintf(0, "Failed to enable device\n");
         return;
     }
 
@@ -138,7 +138,7 @@ void init_device(pci_device *dev, void (*driver_init)(pci_device *dev))
 
 void pci_init()
 {
-    dprintf("[PCI] Scanning for devices\n");
+    dprintf(0, "[PCI] Scanning for devices\n");
 
     for (uint32_t bus = 0; bus <= 0xFF; bus++)
     {
@@ -170,7 +170,7 @@ void pci_init()
                 //     printf("[PCI] Mass Storage Controller\n");
                 //     break;
                 case 0x02:
-                    dprintf("[PCI] Ethernet Controller\n");
+                    dprintf(1, "[PCI] Ethernet Controller\n");
                     switch (new->subclass)
                     {
                     case 0x00:
@@ -183,7 +183,7 @@ void pci_init()
                     break;
                 // case 0x07:
                 // case 0x0c:
-                //     dprintf("[PCI] Serial Controller\n");
+                //     dprintf(1, "[PCI] Serial Controller\n");
                 //     init_device(new, serial_add_pci_device);
                 //     break;
                 default:

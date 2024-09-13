@@ -11,7 +11,7 @@ udp_listener *udp_port_listeners;
 
 void udp_init(void)
 {
-    dprintf("[UDP] init, calloc %f\n", 65536 * sizeof(udp_listener));
+    dprintf(3, "[UDP] init, calloc %f\n", 65536 * sizeof(udp_listener));
     udp_port_listeners = (udp_listener *)calloc(65536 * sizeof(udp_listener));
     if (!udp_port_listeners)
         panic("calloc failed (udp_init)");
@@ -72,7 +72,7 @@ bool udp_send_packet(network_device *netdev, uint32_t sip, uint16_t sport, uint3
     if (!packet)
         panic("calloc failed (udp_send_packet)");
 
-    dprintf("[UDP] sending packet to port %d (ip %i)\n", dport, dip);
+    dprintf(3, "[UDP] sending packet to port %d (ip %i)\n", dport, dip);
 
     packet->dport = htons(dport);
     packet->sport = htons(sport);
@@ -86,7 +86,7 @@ bool udp_send_packet(network_device *netdev, uint32_t sip, uint16_t sport, uint3
 
 void udp_receive_packet(network_device *driver, ip_header *ip, udp_header *packet, void *data)
 {
-    dprintf("[UDP] got packet for port %d\n", ntohs(packet->dport));
+    dprintf(3, "[UDP] got packet for port %d\n", ntohs(packet->dport));
     if (packet->checksum != udp_calculate_checksum(packet, ip->sip, ip->dip, data, ntohs(packet->len) - sizeof(udp_header)))
         printf("[UDP] packet checksum failed (expected %x, actual %x)\n", packet->checksum, udp_calculate_checksum(packet, ip->sip, ip->dip, data, ntohs(packet->len) - sizeof(udp_header)));
     else if (udp_port_listeners[ntohs(packet->dport)])

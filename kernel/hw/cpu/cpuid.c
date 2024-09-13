@@ -7,7 +7,7 @@ cpu_info cpuinfo;
 
 bool get_cpu_info()
 {
-    dprintf("[CPU] Fetching CPUID information\n");
+    dprintf(1, "[CPU] Fetching CPUID information\n");
 
     memset(&cpuinfo, 0, sizeof(cpu_info));
     if (!cpuid_available())

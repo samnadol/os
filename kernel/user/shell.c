@@ -86,7 +86,7 @@ void process_command(tty_interface *tty)
 {
     // mem_print();
     typing_enabled = false;
-    dprintf("[SHL] Command processing started\n");
+    dprintf(1, "[SHL] Command processing started\n");
 
     arg *args = 0;
     uint8_t last_space = 1;
@@ -281,7 +281,7 @@ void process_command(tty_interface *tty)
     tprintf(tty, "> ");
     tty->keybuffer[0] = '\0';
 
-    dprintf("[SHL] Command processing done\n");
+    dprintf(1, "[SHL] Command processing done\n");
     typing_enabled = true;
 }
 

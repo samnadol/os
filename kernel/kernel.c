@@ -85,7 +85,7 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 	status_init();
 	status_update();
 
-	dprintf("[MEM] using mem region %p - %p\n", biggest_mem_segment.start, biggest_mem_segment.start + biggest_mem_segment.len);
+	dprintf(0, "[MEM] using mem region %p - %p\n", biggest_mem_segment.start, biggest_mem_segment.start + biggest_mem_segment.len);
 
 	get_cpu_info();
 	gdt_init();

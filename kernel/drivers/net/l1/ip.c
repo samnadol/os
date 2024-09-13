@@ -44,13 +44,13 @@ bool ip_send_packet(network_device *netdev, uint32_t sip, uint32_t dip, uint16_t
         memset(dmac, 0xFF, 6);
     else if (ip_is_cidr_subnet(dip, netdev->ip_c.gateway, netdev->ip_c.netmask))
     {
-        // dprintf("[IP] ip is local, returning it's mac\n");
+        // dprintf(3, "[IP] ip is local, returning it's mac\n");
         if (!arp_get_mac(netdev, dip, dmac))
             return false;
     }
     else if (!arp_get_mac(netdev, netdev->ip_c.gateway, dmac))
     {
-        // dprintf("[IP] ip is not local, returning gateway mac");
+        // dprintf(3, "[IP] ip is not local, returning gateway mac");
         return false;
     }
 
@@ -58,7 +58,7 @@ bool ip_send_packet(network_device *netdev, uint32_t sip, uint32_t dip, uint16_t
     if (!packet)
         panic("malloc failed (ip_send_packet)");
 
-    dprintf("[IP] sending packet to ip %i (mac %m)\n", dip, dmac);
+    dprintf(5, "[IP] sending packet to ip %i (mac %m)\n", dip, dmac);
 
     packet->version = 4;
     packet->ihl = 5;
@@ -89,7 +89,7 @@ void ip_receive_packet(network_device *netdev, ip_header *packet, size_t data_si
     if (packet->version != 4)
         return;
 
-    dprintf("[IP] got packet for %i\n", ntohl(packet->dip));
+    dprintf(5, "[IP] got packet for %i\n", ntohl(packet->dip));
 
     uint16_t checksum = packet->header_checksum;
     packet->header_checksum = 0;

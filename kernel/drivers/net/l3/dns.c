@@ -37,12 +37,12 @@ dns_answer *dns_cache_get(network_device *netdev, uint32_t dns_server_ip, char *
             if ((uint32_t)(timer_get_epoch() - current->created) > current->ttl)
             {
                 // expired
-                dprintf("[DNS] %s in cache but expired, removing\n", domain);
+                dprintf(3, "[DNS] %s in cache but expired, removing\n", domain);
                 dns_cache_remove(current);
             }
             else
             {
-                dprintf("[DNS] in cache\n");
+                dprintf(3, "[DNS] in cache\n");
                 if (!(current->name_exists))
                     return current;
                 else
@@ -121,7 +121,7 @@ bool dns_send_query(network_device *netdev, uint32_t dns_server_ip, const char *
     query->type = htons(type);
     query->class = htons(DNS_CLASS_IN);
 
-    dprintf("[DNS] sent query for domain %s\n", domain_name);
+    dprintf(3, "[DNS] sent query for domain %s\n", domain_name);
 
     bool res = udp_send_packet(netdev, netdev->ip_c.ip, DNS_PORT, dns_server_ip, 53, packet, sizeof(dns_header) + 1 + strlen(domain_name) + 1 + 4);
     mfree(packet);
@@ -184,7 +184,7 @@ size_t dns_response_read_domain(uint8_t *data, size_t start_offset, uint8_t **bu
 
 void dns_handle_response(network_device *dev, dns_header *header, size_t data_len)
 {
-    dprintf("[DNS] got response, num q: %d, num a: %d\n", header->num_questions, header->num_answers);
+    dprintf(3, "[DNS] got response, num q: %d, num a: %d\n", header->num_questions, header->num_answers);
 
     if (header->flags.rcode != DNS_RCODE_NO_ERROR && header->flags.rcode != DNS_RCODE_NO_SUCH_NAME)
         return; // return if error other than name not existing
@@ -202,7 +202,7 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
         {
             dns_answer *ans = (dns_answer *)calloc(sizeof(dns_answer));
             ans->domain = (char *)domain;
-            dprintf("[DNS] got NSN response for %s\n", ans->domain);
+            dprintf(3, "[DNS] got NSN response for %s\n", ans->domain);
             ans->created = timer_get_epoch();
             ans->ttl = 86400;
             ans->next = 0;
@@ -251,10 +251,10 @@ void dns_handle_response(network_device *dev, dns_header *header, size_t data_le
         switch (ans->type)
         {
         case DNS_TYPE_A:
-            dprintf("[DNS] got     A response for %s: %d.%d.%d.%d type: %x class: %x ttl: %d\n", ans->domain, ans->data[0], ans->data[1], ans->data[2], ans->data[3], ans->type, ans->class, ans->ttl);
+            dprintf(3, "[DNS] got     A response for %s: %d.%d.%d.%d type: %x class: %x ttl: %d\n", ans->domain, ans->data[0], ans->data[1], ans->data[2], ans->data[3], ans->type, ans->class, ans->ttl);
             break;
         case DNS_TYPE_CNAME:
-            dprintf("[DNS] got CNAME response for %s: %s type: %x class: %x ttl: %d\n", ans->domain, ans->data, ans->type, ans->class, ans->ttl);
+            dprintf(3, "[DNS] got CNAME response for %s: %s type: %x class: %x ttl: %d\n", ans->domain, ans->data, ans->type, ans->class, ans->ttl);
             break;
         }
         dns_cache_add(ans);
@@ -309,7 +309,7 @@ dns_answer *dns_get_ip(network_device *netdev, uint32_t dns_server_ip, char *dom
     if (cached)
         return cached;
 
-    dprintf("[DNS] %s not in cache\n", domain);
+    dprintf(3, "[DNS] %s not in cache\n", domain);
     if (!dns_send_query(netdev, dns_server_ip, domain, DNS_TYPE_A))
         return 0;
 

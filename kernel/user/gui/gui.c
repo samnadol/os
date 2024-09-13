@@ -46,13 +46,13 @@ void gui_init()
 
     sb = (uint8_t *)calloc(sb_size);
     if (!sb)
-        dprintf("[GUI] failed to calloc screenbuffer\n");
+        dprintf(0, "[GUI] failed to calloc screenbuffer\n");
 
     mouse = (struct mouse *)calloc(sizeof(struct mouse));
     mouse->mouse_x = 0;
     mouse->mouse_y = 0;
 
-    dprintf("[GUI] init (%dx%d, %d bit, fb @ 0x%x, size %f)\n", vga_info->vga_width, vga_info->vga_height, vga_info->vga_bits_per_pixel, vga_info->vga_address, sb_size);
+    dprintf(0, "[GUI] init (%dx%d, %d bit, fb @ 0x%x, size %f)\n", vga_info->vga_width, vga_info->vga_height, vga_info->vga_bits_per_pixel, vga_info->vga_address, sb_size);
 
     struct pci_dev *current = pci_first;
     for (uint32_t bus = 0; bus <= 0xFF; bus++)
@@ -137,7 +137,7 @@ size_t gui_write(char *s, size_t len, uint16_t x, uint16_t y, uint16_t color)
         uint8_t *fc = font_get_char(s[cx]);
         if (!fc)
         {
-            dprintf("[GUI] no font char for '%c' (ASCII %d)\n", s[cx], s[cx]);
+            dprintf(0, "[GUI] no font char for '%c' (ASCII %d)\n", s[cx], s[cx]);
             continue;
         }
         width += gui_print_letter(fc, x + width, y, color);

@@ -71,12 +71,12 @@ bool http_response_listener(network_device *netdev, tcp_header *tcp, void *data,
         listener_entry = listener_entry->next;
     }
 
-    dprintf("[HTTP] got http response (dport %d)\n", listener_entry->sport);
+    dprintf(2, "[HTTP] got http response (dport %d)\n", listener_entry->sport);
 
     listener_entry->listener(netdev, tcp, data, data_len);
 
     // tcp_connection_close(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.ip, dip, HTTP_SPORT, dport, 5000);
-    // dprintf("[HTTP] connection closed\n");
+    // dprintf(2, "[HTTP] connection closed\n");
 
     tcp_uninstall_listener(listener_entry->sport);
     listener_entry->completed = true;
@@ -112,14 +112,14 @@ bool http_send_request(network_device *netdev, uint32_t dip, uint16_t dport, cha
     }
 
     tcp_install_listener(HTTP_SPORT, http_response_listener);
-    dprintf("[HTTP] listener installed\n");
+    dprintf(2, "[HTTP] listener installed\n");
 
     if (!tcp_connection_open(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.ip, dip, HTTP_SPORT, dport, 5000))
         return false;
 
-    dprintf("[HTTP] connection established\n");
+    dprintf(2, "[HTTP] connection established\n");
 
-    dprintf("[HTTP] sending HTTP request (sport %d)\n", HTTP_SPORT);
+    dprintf(2, "[HTTP] sending HTTP request (sport %d)\n", HTTP_SPORT);
     if (!tcp_connection_transmit(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.ip, dip, HTTP_SPORT, dport, data, strlen(data), 5000))
         return false;
 

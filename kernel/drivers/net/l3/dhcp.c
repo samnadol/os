@@ -37,7 +37,7 @@ void dhcp_process_ack(network_device *netdev, ip_header *ip, udp_header *udp, dh
     netdev->ip_c.gateway = ntohl(packet->giaddr);
     netdev->ip_c.dhcp = ntohl(ip->sip);
 
-    dprintf("[DHCP] accepted IP %i from server %i\n", netdev->ip_c.ip, netdev->ip_c.dhcp);
+    dprintf(3, "[DHCP] accepted IP %i from server %i\n", netdev->ip_c.ip, netdev->ip_c.dhcp);
 
     uint8_t *current_packet_opt = packet->options;
     while (current_packet_opt[0] != DHCP_OPTION_END)
@@ -72,7 +72,7 @@ void dhcp_process_ack(network_device *netdev, ip_header *ip, udp_header *udp, dh
 
 void dhcp_udp_listener(network_device *netdev, ip_header *ip, udp_header *udp, void *data, size_t data_size)
 {
-    dprintf("[DHCP] packet processing started\n");
+    dprintf(3, "[DHCP] packet processing started\n");
 
     dhcp_packet *packet = (dhcp_packet *)data;
     switch (packet->op)
@@ -87,11 +87,11 @@ void dhcp_udp_listener(network_device *netdev, ip_header *ip, udp_header *udp, v
                 switch (current_packet_op[2])
                 {
                 case DHCP_OP_OFFER:
-                    dprintf("[DHCP] got offer\n");
+                    dprintf(3, "[DHCP] got offer\n");
                     dhcp_process_offer(netdev, packet);
                     return;
                 case DHCP_OP_ACK:
-                    dprintf("[DHCP] got ack\n");
+                    dprintf(3, "[DHCP] got ack\n");
                     dhcp_process_ack(netdev, ip, udp, packet);
                     return;
                 }
@@ -100,7 +100,7 @@ void dhcp_udp_listener(network_device *netdev, ip_header *ip, udp_header *udp, v
         }
         break;
     default:
-        dprintf("[DHCP] invalid DHCP server reply\n");
+        dprintf(3, "[DHCP] invalid DHCP server reply\n");
         break;
     }
 }
@@ -144,7 +144,7 @@ bool dhcp_send_discover(network_device *netdev, uint32_t xid)
 
     packet->options[opt_num++] = DHCP_OPTION_END;
 
-    dprintf("[DHCP] sending discover\n");
+    dprintf(3, "[DHCP] sending discover\n");
     bool res = udp_send_packet(netdev, 0, 68, 0xFFFFFFFF, 67, packet, sizeof(dhcp_packet) - (312 - opt_num));
     mfree(packet);
     return res;
@@ -156,7 +156,7 @@ bool dhcp_send_request(network_device *netdev, uint32_t server_ip, uint32_t requ
     if (!packet)
         panic("calloc failed (dhcp_send_request)");
 
-    dprintf("[DHCP] sent request\n");
+    dprintf(3, "[DHCP] sent request\n");
 
     packet->op = DHCP_BOOT_OP_REQUEST;
     packet->htype = DHCP_HTYPE_ETHERNET;
@@ -239,7 +239,7 @@ bool dhcp_configuration_release(network_device *netdev)
     memset(&packet->sname, 0, 64);
     memset(&packet->file, 0, 128);
 
-    dprintf("[DHCP] sending release\n");
+    dprintf(3, "[DHCP] sending release\n");
     bool res = udp_send_packet(netdev, netdev->ip_c.ip, 68, netdev->ip_c.dhcp, 67, packet, sizeof(dhcp_packet) - (312 - opt));
     mfree(packet);
 
@@ -275,12 +275,12 @@ bool dhcp_configuration_request(network_device *netdev, uint32_t timeout)
         uint8_t mac[6];
         if (arp_get_mac(netdev, offers[i].offered_ip, mac))
         {
-            dprintf("[DHCP] offer for %i (currently in use)\n", offers[i].offered_ip);
+            dprintf(3, "[DHCP] offer for %i (currently in use)\n", offers[i].offered_ip);
             continue;
         }
         else
         {
-            dprintf("[DHCP] offer for %i (not currently in use)\n", offers[i].offered_ip);
+            dprintf(3, "[DHCP] offer for %i (not currently in use)\n", offers[i].offered_ip);
             dhcp_send_request(netdev, offers[i].server_ip, offers[i].offered_ip, xid);
             return true;
         }

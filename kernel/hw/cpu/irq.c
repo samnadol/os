@@ -15,7 +15,7 @@ irq_routine *base = 0;
 
 void irq_register(int n, void (*handler)(registers_t *))
 {
-    dprintf("[INT] Registering IRQ 0x%x to handler %p\n", n, handler);
+    dprintf(0, "[INT] Registering IRQ 0x%x to handler %p\n", n, handler);
 
     irq_routine *routine = (irq_routine *)calloc(sizeof(irq_routine));
     routine->handler = handler;
