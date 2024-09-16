@@ -39,6 +39,28 @@ http_response *http_parse_response(void *data, size_t data_size)
 
     ret->response_string = strcut(data_nocr, firstnlloc);
 
+
+    char *headers = strcut(data_nocr + firstnlloc, contentstart - firstnlloc + 1);
+    size_t headers_len = strlen(headers);
+    size_t loc = 0;
+    while (loc < strlen(headers))
+    {
+        size_t s = strfindchar(headers + loc, '\n');
+        char *header = strcut(headers + loc, s);
+
+        size_t seploc = strfindchar(header, ':');
+        char *key = strcut(header, seploc);
+        char *val = strcut(header + seploc + 1, s - seploc - 1);
+
+        printf("K %s V %s\n", key, val);
+        mfree(key);
+        mfree(val);
+
+        mfree(header);
+        loc += s;
+    }
+    mfree(headers);
+
     if (strlen(data_nocr) == contentstart)
     {
         ret->data = 0;

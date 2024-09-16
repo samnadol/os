@@ -204,7 +204,7 @@ void process_command(tty_interface *tty)
         size_t firstslash = strfindchar(args->next->val, '/');
         char *domain = strcut(args->next->val, firstslash);
         char *path = args->next->val + firstslash - 1;
-        if (strlen(args->next->val) == firstslash) {
+        if (strlen(args->next->val) == firstslash - 1) {
             domain = args->next->val;
             path = "/";
         }

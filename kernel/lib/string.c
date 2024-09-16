@@ -159,12 +159,12 @@ size_t strfindchar(char *s, char delim)
     for (i = 0; i < strlen(s); i++)
         if (s[i] == delim)
             break;
-    return (i == strlen(s)) ? strlen(s) : i + 1;
+    return (i == strlen(s)) ? strlen(s) + 1 : i + 1;
 }
 
 char *strcut(char *s, size_t n)
 {
-    if (strlen(s) == n)
+    if (strlen(s) + 1 < n)
         return 0;
 
     char *r = (char *)calloc(n);
