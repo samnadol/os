@@ -14,8 +14,10 @@ typedef struct http_header {
 
 typedef struct http_response {
     char *response_string;
+    uint16_t response_code;
+
     http_header *headers;
-    char *data;
+    void *data;
 } http_response;
 
 typedef bool (*http_listener)(network_device *driver, tcp_header *tcp, void *data, size_t data_size);

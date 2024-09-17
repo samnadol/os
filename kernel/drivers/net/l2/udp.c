@@ -7,27 +7,67 @@
 #include "../../../lib/arpa/inet.h"
 #include "../../../lib/string.h"
 
-udp_listener *udp_port_listeners;
+udp_listener_node *udp_port_listeners;
+
+udp_listener_node *get_udp_listener(uint16_t dport)
+{
+    udp_listener_node *current = udp_port_listeners;
+    while (current)
+    {
+        if (current->dport == dport)
+            return current;
+        current = current->next;
+    }
+    return 0;
+}
+
+void set_udp_listener(uint16_t dport, udp_listener listener)
+{
+    udp_listener_node *llnode = (udp_listener_node *)calloc(sizeof(udp_listener_node));
+    llnode->dport = dport;
+    llnode->listener = listener;
+
+    udp_listener_node *current = udp_port_listeners;
+
+    if (!current)
+        udp_port_listeners = llnode;
+    else
+    {
+        while (current->next)
+            current = current->next;
+        current->next = llnode;
+        llnode->prev = current;
+    }
+}
+
+void del_udp_listener(uint16_t dport)
+{
+    udp_listener_node *todel = get_udp_listener(dport);
+    todel->next->prev = todel->prev;
+    todel->prev->next = todel->next;
+    mfree(todel);
+}
 
 void udp_init(void)
 {
-    dprintf(3, "[UDP] init, calloc %f\n", 65536 * sizeof(udp_listener));
-    udp_port_listeners = (udp_listener *)calloc(65536 * sizeof(udp_listener));
-    if (!udp_port_listeners)
-        panic("calloc failed (udp_init)");
+    dprintf(3, "[UDP] init");
+    // udp_port_listeners = (udp_listener *)calloc(65536 * sizeof(udp_listener));
+    // if (!udp_port_listeners)
+    //     panic("calloc failed (udp_init)");
 }
 
 bool udp_install_listener(uint16_t dport, udp_listener listener)
 {
-    if (udp_port_listeners[dport])
+    if (get_udp_listener(dport))
         return false;
 
-    udp_port_listeners[dport] = listener;
+    set_udp_listener(dport, listener);
     return true;
 }
+
 void udp_uninstall_listener(uint16_t dport)
 {
-    udp_port_listeners[dport] = 0;
+    del_udp_listener(dport);
 }
 
 uint16_t udp_calculate_checksum(udp_header *packet, uint32_t sip, uint32_t dip, void *payload, size_t payload_size)
@@ -89,6 +129,6 @@ void udp_receive_packet(network_device *driver, ip_header *ip, udp_header *packe
     dprintf(3, "[UDP] got packet for port %d\n", ntohs(packet->dport));
     if (packet->checksum != udp_calculate_checksum(packet, ip->sip, ip->dip, data, ntohs(packet->len) - sizeof(udp_header)))
         printf("[UDP] packet checksum failed (expected %x, actual %x)\n", packet->checksum, udp_calculate_checksum(packet, ip->sip, ip->dip, data, ntohs(packet->len) - sizeof(udp_header)));
-    else if (udp_port_listeners[ntohs(packet->dport)])
-        udp_port_listeners[ntohs(packet->dport)](driver, ip, packet, data, ntohs(packet->len) - sizeof(udp_header));
+    else if (get_udp_listener(ntohs(packet->dport)))
+        get_udp_listener(ntohs(packet->dport))->listener(driver, ip, packet, data, ntohs(packet->len) - sizeof(udp_header));
 }

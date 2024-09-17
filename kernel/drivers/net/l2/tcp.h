@@ -38,19 +38,15 @@ typedef struct __attribute__((packed, aligned(1))) tcp_header
     uint16_t urgent_pointer;
 } tcp_header;
 
-typedef struct tcp_datapart
-{
-    uint32_t seqno;
-    uint8_t num_parts;
-
-    void *data;
-    size_t data_length;
-
-    struct tcp_datapart *next;
-    struct tcp_datapart *prev;
-} tcp_datapart;
-
 typedef bool (*tcp_listener)(network_device *, tcp_header *, void *, size_t);
+
+typedef struct tcp_listener_node {
+    uint16_t dport;
+    tcp_listener listener;
+
+    struct tcp_listener_node *next;
+    struct tcp_listener_node *prev;
+} tcp_listener_node;
 
 void tcp_init();
 void tcp_receive_packet(network_device *driver, ip_header *ip_packet, tcp_header *packet, void *data);

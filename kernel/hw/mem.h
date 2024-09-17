@@ -8,12 +8,14 @@
 
 typedef struct mem_segment
 {
-	uint64_t *start;
-	uint64_t len;
+    uint64_t *start;
+    uint64_t len;
 } mem_segment_t;
 
 typedef struct mem_node
 {
+    uint32_t magic_number;
+    
     uint64_t size;
     bool used;
 

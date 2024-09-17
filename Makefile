@@ -11,7 +11,7 @@ K_H := $(shell find kernel/ -type f -name '*.h')
 # development
 	
 run_kernel_i386: build/os.bin
-	qemu-system-i386 -m 32M \
+	qemu-system-i386 -m 3M \
 	-kernel build/os.bin \
 	-serial stdio \
 	-object filter-dump,id=f1,netdev=eth,file=qemu-pktlog.pcap \
@@ -66,4 +66,7 @@ build/%.o: %.asm
 
 build/%.o: %.c ${HEADERS}
 	@mkdir -p $(dir $@)
-	$(CC) $< -o $@ -g -c -m32 -ffreestanding -O3 -nostdlib -Wno-unused-variable -Werror -Wall 
+	$(CC) $< -o $@ -g -c -m32 -ffreestanding -O3 -nostdlib -Wno-unused-variable -Werror -Wall
+
+test: build_test/test.o ${K_OBJ_BT}
+	$(CC) test.o $(K_OBJ_BT)

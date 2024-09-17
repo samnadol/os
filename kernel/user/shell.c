@@ -86,7 +86,6 @@ void process_command(tty_interface *tty)
 {
     // mem_print();
     typing_enabled = false;
-    dprintf(1, "[SHL] Command processing started\n");
 
     arg *args = 0;
     uint8_t last_space = 1;
@@ -204,10 +203,8 @@ void process_command(tty_interface *tty)
         size_t firstslash = strfindchar(args->next->val, '/');
         char *domain = strcut(args->next->val, firstslash);
         char *path = args->next->val + firstslash - 1;
-        if (strlen(args->next->val) == firstslash - 1) {
-            domain = args->next->val;
+        if (strlen(args->next->val) == firstslash - 1)
             path = "/";
-        }
 
         uint32_t ip = 0;
         dns_answer *ans = dns_get_ip(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.dns, domain, 5000);
@@ -281,7 +278,6 @@ void process_command(tty_interface *tty)
     tprintf(tty, "> ");
     tty->keybuffer[0] = '\0';
 
-    dprintf(1, "[SHL] Command processing done\n");
     typing_enabled = true;
 }
 

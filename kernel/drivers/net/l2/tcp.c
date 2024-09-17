@@ -7,6 +7,7 @@
 #include "../../../lib/string.h"
 #include "../../../lib/random.h"
 
+// tcp connection cache
 typedef struct tcp_cache_entry
 {
     uint16_t port;
@@ -23,8 +24,68 @@ typedef struct tcp_cache_entry
 } tcp_cache_entry;
 tcp_cache_entry *tcp_cache;
 
-tcp_listener *tcp_port_listeners;
+// tcp multipart reconstruction cache
+typedef struct tcp_datapart
+{
+    uint32_t seqno;
+    uint8_t num_parts;
+
+    void *data;
+    size_t data_length;
+
+    struct tcp_datapart *next;
+    struct tcp_datapart *prev;
+} tcp_datapart;
 tcp_datapart *tcp_dataparts;
+
+// tcp port listener cache
+tcp_listener_node *tcp_port_listeners;
+
+tcp_listener_node *get_tcp_listener(uint16_t dport)
+{
+    tcp_listener_node *current = tcp_port_listeners;
+    while (current)
+    {
+        if (current->dport == dport)
+            return current;
+        current = current->next;
+    }
+    return 0;
+}
+
+void set_tcp_listener(uint16_t dport, tcp_listener listener)
+{
+    tcp_listener_node *llnode = (tcp_listener_node *)calloc(sizeof(tcp_listener_node));
+    llnode->dport = dport;
+    llnode->listener = listener;
+
+    tcp_listener_node *current = tcp_port_listeners;
+
+    if (!current)
+    {
+        tcp_port_listeners = llnode;
+    }
+    else
+    {
+        while (current->next)
+            current = current->next;
+        current->next = llnode;
+        llnode->prev = current;
+    }
+}
+
+void del_tcp_listener(uint16_t dport)
+{
+    tcp_listener_node *todel = get_tcp_listener(dport);
+    if (!(todel->next) && !(todel->prev))
+        tcp_port_listeners = 0;
+    else
+    {
+        todel->next->prev = todel->prev;
+        todel->prev->next = todel->next;
+    }
+    mfree(todel);
+}
 
 tcp_cache_entry *tcp_get_cache(uint16_t port)
 {
@@ -270,8 +331,11 @@ void tcp_receive_packet(network_device *netdev, ip_header *ip, tcp_header *tcp, 
 
     if (tcp->flags.psh) // DATA END
     {
-        if (tcp_port_listeners[tcp->dport])
+        // printf("%d\n", tcp->dport);
+        if (get_tcp_listener(tcp->dport))
         {
+            // printf("%d %p\n", tcp->dport, get_tcp_listener(tcp->dport));
+
             tcp_cache_entry *ce = tcp_get_cache(tcp->dport);
             if (ce)
             {
@@ -284,7 +348,7 @@ void tcp_receive_packet(network_device *netdev, ip_header *ip, tcp_header *tcp, 
 
                 tcp_datapart *complete_data = tcp_get_datapart(ce->seq);
                 dprintf(3, "[TCP] finished data packet, len %d, %d parts\n", complete_data->data_length, complete_data->num_parts);
-                tcp_listener listener = tcp_port_listeners[tcp->dport];
+                tcp_listener listener = get_tcp_listener(tcp->dport)->listener;
                 listener(netdev, tcp, complete_data->data, complete_data->data_length);
                 tcp_delete_datapart(ce->seq);
 
@@ -408,22 +472,20 @@ void tcp_connection_close(network_device *netdev, uint32_t sip, uint32_t dip, ui
 
 bool tcp_install_listener(uint16_t port, tcp_listener listener)
 {
-    if (tcp_port_listeners[port])
-    {
+    if (get_tcp_listener(port))
         return false;
-    }
 
-    tcp_port_listeners[port] = listener;
+    set_tcp_listener(port, listener);
     return true;
 }
 
 void tcp_uninstall_listener(uint16_t port)
 {
-    tcp_port_listeners[port] = NULL;
+    del_tcp_listener(port);
 }
 
 void tcp_init()
 {
-    dprintf(3, "[TCP] init, calloc %f\n", 65536 * sizeof(tcp_listener));
-    tcp_port_listeners = (tcp_listener *)calloc(65536 * sizeof(tcp_listener));
+    dprintf(3, "[TCP] init");
+    // tcp_port_listeners = (tcp_listener *)calloc(65536 * sizeof(tcp_listener));
 }

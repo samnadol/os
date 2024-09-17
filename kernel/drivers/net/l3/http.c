@@ -22,6 +22,17 @@ http_listener_entry *http_listeners;
 
 void http_free_response(http_response *resp)
 {
+    http_header *ll = resp->headers;
+    while (ll)
+    {
+        http_header *current = ll;
+        ll = ll->next;
+
+        mfree(current->key);
+        mfree(current->value);
+        mfree(current);
+    }
+
     mfree(resp->response_string);
     mfree(resp->data);
     mfree(resp);
@@ -39,24 +50,34 @@ http_response *http_parse_response(void *data, size_t data_size)
 
     ret->response_string = strcut(data_nocr, firstnlloc);
 
-
     char *headers = strcut(data_nocr + firstnlloc, contentstart - firstnlloc + 1);
     size_t headers_len = strlen(headers);
     size_t loc = 0;
     while (loc < strlen(headers))
     {
         size_t s = strfindchar(headers + loc, '\n');
-        char *header = strcut(headers + loc, s);
+        char *header_string = strcut(headers + loc, s);
 
-        size_t seploc = strfindchar(header, ':');
-        char *key = strcut(header, seploc);
-        char *val = strcut(header + seploc + 1, s - seploc - 1);
+        size_t seploc = strfindchar(header_string, ':');
+        char *key = strcut(header_string, seploc);
+        char *val = strcut(header_string + seploc + 1, s - seploc - 1);
 
-        printf("K %s V %s\n", key, val);
-        mfree(key);
-        mfree(val);
+        http_header *header = (http_header *)calloc(sizeof(http_header));
+        header->key = key;
+        header->value = val;
+        header->next = 0;
 
-        mfree(header);
+        if (!(ret->headers))
+            ret->headers = header;
+        else
+        {
+            http_header *ll = ret->headers;
+            while (ll->next)
+                ll = ll->next;
+            ll->next = header;
+        }
+
+        mfree(header_string);
         loc += s;
     }
     mfree(headers);
@@ -67,16 +88,16 @@ http_response *http_parse_response(void *data, size_t data_size)
     }
     else
     {
-        size_t resplen = strlen(data_nocr) - contentstart - strlen("\n\n");
+        size_t resplen = strlen(data_nocr) - contentstart - strlen("\n\n") + 1;
         char *respdata = (char *)calloc(resplen);
         memcpy(respdata, data_nocr + contentstart + strlen("\n\n"), resplen);
-        respdata[resplen] = 0;
+        respdata[resplen - 1] = 0;
 
         ret->data = respdata;
     }
 
-    // for (size_t i = 0; i < strlen(ret->data) + 1; i++)
-    //     printf("%d %c\n", ret->data[i], ret->data[i]);
+    // // for (size_t i = 0; i < strlen(ret->data) + 1; i++)
+    // //     printf("%d %c\n", ret->data[i], ret->data[i]);
 
     mfree(data_nocr);
     return ret;

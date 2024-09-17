@@ -39,8 +39,8 @@ void mem_print_blocks(tty_interface *tty)
         {
             // if (!current->printed)
             // {
-                printf("(%d) %s %d: %d\n", current->alloc_epoch, current->caller_file, current->caller_line, current->size);
-                current->printed = true;
+            printf("(%d) %s %d: %d\n", current->alloc_epoch, current->caller_file, current->caller_line, current->size);
+            current->printed = true;
             // }
         }
 
@@ -54,6 +54,7 @@ void init_mem(mem_segment_t *biggest_mem_segment)
     // printf("[MEM] Used memory segment 0x%p - 0x%p -> %f\n", biggest_mem_segment->start, biggest_mem_segment->start + biggest_mem_segment->len, biggest_mem_segment->len);
 
     mem_start = (mem_node_t *)biggest_mem_segment->start;
+    mem_start->magic_number = 0xDEADBEEF;
     mem_start->size = biggest_mem_segment->len - MEM_1NODE_SIZE;
     mem_start->used = 0;
     mem_start->next = NULL;
@@ -100,6 +101,7 @@ void *kmalloc(char *file, int line, size_t req_size)
     mem_node_alloc->caller_file = file;
     mem_node_alloc->caller_line = line;
     mem_node_alloc->printed = false;
+    mem_node_alloc->magic_number = 0xDEADBEEF;
 
     if (best->next != NULL)
         best->next->prev = mem_node_alloc;
@@ -135,11 +137,10 @@ void mfree(void *ptr)
         return;
 
     mem_node_t *free = (mem_node_t *)((uint8_t *)ptr - MEM_1NODE_SIZE);
-    // dprintf(3, "[MEM] free %p (%d b)\n", ptr, free->size);
+    dprintf(3, "[MEM] free %p (%d b)\n", ptr, free->size);
     ptr = NULL;
-    
 
-    if (free == NULL)
+    if (free == NULL || free->magic_number != 0xDEADBEEF)
         return;
 
     free->used = false;
@@ -185,7 +186,7 @@ mem_stats mem_get_stats()
     mem_node_t *current = mem_start;
     while (current != NULL)
     {
-        total += current->size + MEM_1NODE_SIZE;
+        total += current->size + sizeof(mem_node_t);
         if (current->used)
             used += current->size;
 

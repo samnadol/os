@@ -14,6 +14,14 @@ typedef struct __attribute__((packed, aligned(1))) udp_header
 } udp_header;
 
 typedef void (*udp_listener)(network_device *, ip_header *, udp_header *, void *, size_t);
+typedef struct udp_listener_node {
+    uint16_t dport;
+    udp_listener listener;
+
+    struct udp_listener_node *next;
+    struct udp_listener_node *prev;
+} udp_listener_node;
+
 
 void udp_init(void);
 
