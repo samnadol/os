@@ -8,73 +8,73 @@
 
 inline void rtl8139_write8(network_device *dev, uint16_t address, uint8_t value)
 {
-    if (dev->pci_device->bar_type == 0)
+    if (dev->pci_device->bar0_type == 0)
     {
-        mmio_write8((uint64_t *)(uintptr_t)(dev->pci_device->mem_base + address), value);
+        mmio_write8((uint64_t *)(uintptr_t)(dev->pci_device->bar[1] + address), value);
     }
     else
     {
-        outb(dev->pci_device->io_base + address, value);
+        outb(dev->pci_device->bar[0] + address, value);
     }
 }
 
 inline uint8_t rtl8139_read8(network_device *dev, uint16_t address)
 {
-    if (dev->pci_device->bar_type == 0)
+    if (dev->pci_device->bar0_type == 0)
     {
-        return mmio_read8((uint64_t *)(uintptr_t)(dev->pci_device->mem_base + address));
+        return mmio_read8((uint64_t *)(uintptr_t)(dev->pci_device->bar[1] + address));
     }
     else
     {
-        return inb(dev->pci_device->io_base + address);
+        return inb(dev->pci_device->bar[0] + address);
     }
 }
 
 inline void rtl8139_write32(network_device *dev, uint16_t address, uint32_t value)
 {
-    if (dev->pci_device->bar_type == 0)
+    if (dev->pci_device->bar0_type == 0)
     {
-        mmio_write32((uint64_t *)(uintptr_t)(dev->pci_device->mem_base + address), value);
+        mmio_write32((uint64_t *)(uintptr_t)(dev->pci_device->bar[1] + address), value);
     }
     else
     {
-        outl(dev->pci_device->io_base + address, value);
+        outl(dev->pci_device->bar[0] + address, value);
     }
 }
 
 inline uint32_t rtl8139_read32(network_device *dev, uint16_t address)
 {
-    if (dev->pci_device->bar_type == 0)
+    if (dev->pci_device->bar0_type == 0)
     {
-        return mmio_read8((uint64_t *)(uintptr_t)(dev->pci_device->mem_base + address));
+        return mmio_read8((uint64_t *)(uintptr_t)(dev->pci_device->bar[1] + address));
     }
     else
     {
-        return inl(dev->pci_device->io_base + address);
+        return inl(dev->pci_device->bar[0] + address);
     }
 }
 
 inline void rtl8139_write16(network_device *dev, uint16_t address, uint16_t value)
 {
-    if (dev->pci_device->bar_type == 0)
+    if (dev->pci_device->bar0_type == 0)
     {
-        mmio_write16((uint64_t *)(uintptr_t)(dev->pci_device->mem_base + address), value);
+        mmio_write16((uint64_t *)(uintptr_t)(dev->pci_device->bar[1] + address), value);
     }
     else
     {
-        outw(dev->pci_device->io_base + address, value);
+        outw(dev->pci_device->bar[0] + address, value);
     }
 }
 
 inline uint16_t rtl8139_read16(network_device *dev, uint16_t address)
 {
-    if (dev->pci_device->bar_type == 0)
+    if (dev->pci_device->bar0_type == 0)
     {
-        return mmio_read16((uint64_t *)(uintptr_t)(dev->pci_device->mem_base + address));
+        return mmio_read16((uint64_t *)(uintptr_t)(dev->pci_device->bar[1] + address));
     }
     else
     {
-        return inw(dev->pci_device->io_base + address);
+        return inw(dev->pci_device->bar[0] + address);
     }
 }
 
@@ -120,7 +120,7 @@ network_device *rtl8139_init(pci_device *pci)
 
     netdev->pci_device = pci;
 
-    printf("[RTL8139] Driver init for dev at MEMBAR: 0x%x, IOBAR: 0x%x, BAR0 Type: %x\n", netdev->pci_device->mem_base, netdev->pci_device->io_base, netdev->pci_device->bar_type);
+    printf("[RTL8139] Driver init for dev at MEMBAR: 0x%x, IOBAR: 0x%x, BAR0 Type: %x\n", netdev->pci_device->bar[1], netdev->pci_device->bar[0], netdev->pci_device->bar0_type);
 
     rtl8139_write8(netdev, RTL8139_REG_CONF1, 0x0);
     rtl8139_read_mac(netdev);

@@ -26,6 +26,15 @@ void dns_cache_remove(dns_answer *ans)
     mfree(ans);
 }
 
+void dns_clear_cache()
+{
+    dns_answer *current = dns_cache;
+    while (current) {
+        dns_cache_remove(current);
+        current = dns_cache;
+        }
+}
+
 dns_answer *dns_cache_get(network_device *netdev, uint32_t dns_server_ip, char *domain, size_t timeout)
 {
     dns_answer *current = dns_cache;

@@ -92,6 +92,7 @@ typedef struct dns_answer
 
 void dns_init();
 void dns_print(tty_interface *tty);
+void dns_clear_cache();
 dns_answer *dns_get_ip(network_device *netdev, uint32_t dns_server_ip, char *domain, size_t timeout);
 
 #endif

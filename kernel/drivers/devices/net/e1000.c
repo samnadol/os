@@ -12,27 +12,27 @@
 
 inline void e1000_write32(network_device *dev, uint16_t p_address, uint32_t p_value)
 {
-    if (dev->pci_device->bar_type == 0)
+    if (dev->pci_device->bar0_type == 0)
     {
-        mmio_write32((uint64_t *)(uintptr_t)(dev->pci_device->mem_base + p_address), p_value);
+        mmio_write32((uint64_t *)(uintptr_t)(dev->pci_device->bar[0] + p_address), p_value);
     }
     else
     {
-        outl(dev->pci_device->io_base, p_address);
-        outl(dev->pci_device->io_base + 4, p_value);
+        outl(dev->pci_device->bar[1], p_address);
+        outl(dev->pci_device->bar[1] + 4, p_value);
     }
 }
 
 inline uint32_t e1000_read32(network_device *dev, uint16_t p_address)
 {
-    if (dev->pci_device->bar_type == 0)
+    if (dev->pci_device->bar0_type == 0)
     {
-        return mmio_read32((uint64_t *)(uintptr_t)(dev->pci_device->mem_base + p_address));
+        return mmio_read32((uint64_t *)(uintptr_t)(dev->pci_device->bar[0] + p_address));
     }
     else
     {
-        outl(dev->pci_device->io_base, p_address);
-        return inl(dev->pci_device->io_base + 4);
+        outl(dev->pci_device->bar[1], p_address);
+        return inl(dev->pci_device->bar[1] + 4);
     }
 }
 
@@ -109,13 +109,13 @@ bool e1000_read_mac(network_device *dev)
     }
     else
     {
-        if ((uint32_t *)(uintptr_t)(dev->pci_device->mem_base + 0x5400) != 0)
+        if ((uint32_t *)(uintptr_t)(dev->pci_device->bar[1] + 0x5400) != 0)
         {
             // mac address memory is not 0
             for (int i = 0; i < 6; i++)
             {
                 dev->mac[i] =
-                    *((uint8_t *)(uintptr_t)(dev->pci_device->mem_base + 0x5400 + i));
+                    *((uint8_t *)(uintptr_t)(dev->pci_device->bar[1] + 0x5400 + i));
             }
         }
         else
@@ -391,9 +391,7 @@ network_device *e1000_init(pci_device *pci)
     netdev->int_disable = &e1000_int_disable;
     netdev->int_handle = &e1000_int_handle;
 
-    dprintf(0, "[e1000] Net driver init for dev at MEMBAR: %x, IOBAR: ", pci->mem_base);
-    dprintf(0, "%x, BAR0 Type: ", pci->io_base);
-    dprintf(0, "%x\n", pci->bar_type);
+    dprintf(0, "[e1000] Net driver init for dev at BAR0: %x, BAR1: %x, BAR0 Type: %x\n", pci->bar[0], pci->bar[1], pci->bar0_type);
 
     e1000_reset(netdev);
     e1000_write32(netdev, E1000_REG_EECD, E1000_REGBIT_EECD_SK | E1000_REGBIT_EECD_CS | E1000_REGBIT_EECD_DI);

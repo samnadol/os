@@ -27,9 +27,9 @@ bool qemu_pci_serial_has_data(pci_device *dev)
 
 serial_device *qemu_pci_serial_init(pci_device *pci)
 {
-    printf("[QEM] Serial driver init for dev at MEMBAR: %x, IOBAR: ", pci->mem_base);
-    printf("%x, BAR0 Type: ", pci->io_base);
-    printf("%x\n", pci->bar_type);
+    printf("[QEM] Serial driver init for dev at MEMBAR: %x, IOBAR: ", pci->bar[1]);
+    printf("%x, BAR0 Type: ", pci->bar[0]);
+    printf("%x\n", pci->bar0_type);
 
     serial_device *new = (serial_device *)calloc(sizeof(serial_device));
     new->type = SERIAL_PCI;
@@ -39,7 +39,7 @@ serial_device *qemu_pci_serial_init(pci_device *pci)
     new->pci_has_data = &qemu_pci_serial_has_data;
     new->pci_int_enable = &qemu_pci_serial_int_enable;
 
-    com = com_init(pci->io_base);
+    com = com_init(pci->bar[0]);
 
     return new;
 }

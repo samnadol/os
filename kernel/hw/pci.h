@@ -12,20 +12,22 @@
 #define PCI_BAR_MEM 0x0
 #define PCI_BAR_IO 0x1
 
-typedef struct pci_device {
+typedef struct pci_device
+{
     uint8_t bus;
     uint8_t slot;
     uint8_t function;
 
+    uint8_t revision;
+    uint8_t prog_if;
     uint8_t class;
     uint8_t subclass;
 
     uint16_t vendor;
     uint16_t device;
 
-    uint8_t bar_type;  // Type of BAR0
-    uint16_t io_base;  // IO Base Address (BAR)
-    uint64_t mem_base; // MMIO Base Address (BAR)
+    uint8_t bar0_type;  // Type of BAR0
+    uint32_t bar[6];
 
     uint16_t int_line;
 
@@ -36,7 +38,10 @@ void pci_print(tty_interface *tty);
 void pci_init();
 
 uint32_t pci_conf_inl(uint32_t bus, uint32_t slot, uint32_t function, uint16_t offset);
+uint16_t pci_conf_inw(uint32_t bus, uint32_t slot, uint32_t function, uint8_t offset);
+
 void pci_conf_outl(uint32_t bus, uint32_t slot, uint32_t function, uint16_t offset, uint32_t data);
+void pci_conf_outw(uint32_t bus, uint32_t slot, uint32_t function, uint16_t offset, uint16_t value);
 
 uint16_t pci_get_vendor_id(uint32_t bus, uint32_t slot, uint32_t function);
 uint16_t pci_get_device_id(uint32_t bus, uint32_t slot, uint32_t function);

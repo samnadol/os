@@ -74,8 +74,8 @@ void irq_init()
 
 void irq_handler(registers_t *r)
 {
-    // if (r->int_no != 0x20)
-    //     printf("[INT] 0x%x\n", r->int_no);
+    if (r->int_no != 0x20)
+        dprintf(4, "[INT] 0x%x\n", r->int_no);
 
     irq_routine *current = base;
     if (!current)

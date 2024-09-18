@@ -156,7 +156,7 @@ void gui_update()
     gui_write(buf, sprintf(buf, "%s", cpuinfo.model), 5, 35, VGA_256_WHITE);
     gui_write("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26, 140, 55, VGA_256_WHITE);
     gui_write("abcdefghijklmnopqrstuvwxyz", 26, 140, 70, VGA_256_WHITE);
-    gui_write("01234567890 ():@+-/.,?", 21, 140, 85, VGA_256_WHITE);
+    gui_write("0123456789 ():@+-/.,?", 21, 140, 85, VGA_256_WHITE);
 
     gui_write("PCI Devices:", 12, 140, 115, VGA_256_WHITE);
     size_t cy = 130, cx = 140;

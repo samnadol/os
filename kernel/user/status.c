@@ -7,6 +7,7 @@
 #include "../hw/cpu/cpuid.h"
 #include "../drivers/tty.h"
 #include "../hw/mem.h"
+#include "../hw/timer.h"
 
 #include "../drivers/net/l0/ethernet.h"
 #include "../drivers/net/l1/arp.h"
@@ -69,7 +70,7 @@ void status_update()
 {
     memset(buffer, 0, 79);
     mem_stats mem = mem_get_stats();
-    sprintf(buffer, "os lan: %i wan: %i %d / %d (%d%%)", ethernet_first_netdev() ? ethernet_first_netdev()->ip_c.ip : 0, wan_ip, mem.used, mem.total, (mem.used * 100) / mem.total);
+    sprintf(buffer, "os uptime: %ds lan: %i wan: %i %d / %d (%d%%)", (uint32_t)timer_get_epoch(), ethernet_first_netdev() ? ethernet_first_netdev()->ip_c.ip : 0, wan_ip, mem.used, mem.total, (mem.used * 100) / mem.total);
     // sprintf(buffer, "os %f", mem.used);
     status_write(0, 0, buffer);
 }

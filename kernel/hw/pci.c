@@ -5,6 +5,7 @@
 #include "cpu/system.h"
 #include "../lib/string.h"
 #include "../drivers/net/l0/ethernet.h"
+#include "../drivers/devices/io/ata.h"
 #include "../drivers/serial.h"
 
 pci_device *active_pci_device_list;
@@ -119,18 +120,16 @@ void init_device(pci_device *dev, void (*driver_init)(pci_device *dev))
         return;
     }
 
-    for (int i = 0x10; i < 0x28; i += 0x4)
+    for (int i = 0; i < 6; i += 1)
     {
-        uint32_t res = pci_conf_inl(dev->bus, dev->slot, dev->function, i);
-        if (res == 0)
-            continue;
-        else if ((res & 0b1) == PCI_BAR_IO)
-            dev->io_base = (uint32_t)(res & ~0b111);
-        else if ((res & 0b0) == PCI_BAR_MEM)
-            dev->mem_base = (uint32_t)(res & ~0b111);
+        uint32_t res = pci_conf_inl(dev->bus, dev->slot, dev->function, 0x10 + (i * 0x04));
+        dev->bar[i] = (uint32_t)(res & ~0b111);
     }
 
-    dev->bar_type = pci_conf_inl(dev->bus, dev->slot, dev->function, 0x10) & 0b1;
+    dev->revision = pci_conf_inl(dev->bus, dev->slot, dev->function, 0x08) & 0xFF;
+    dev->prog_if = (pci_conf_inl(dev->bus, dev->slot, dev->function, 0x08) >> 8) & 0xFF;
+
+    dev->bar0_type = pci_conf_inl(dev->bus, dev->slot, dev->function, 0x10) & 0x01;
     dev->int_line = pci_conf_inl(dev->bus, dev->slot, dev->function, 0x3C) & 0xFF;
 
     driver_init(dev);
@@ -166,11 +165,20 @@ void pci_init()
 
                 switch (new->class)
                 {
-                // case 0x01:
-                //     printf("[PCI] Mass Storage Controller\n");
-                //     break;
+                case 0x01:
+                    dprintf(0, "[PCI] Mass Storage Controller\n");
+                    switch (new->subclass)
+                    {
+                    case 0x01:
+                        init_device(new, ata_device_init);
+                        break;
+                    default:
+                        mfree(new);
+                        continue;
+                    }
+                    break;
                 case 0x02:
-                    dprintf(1, "[PCI] Ethernet Controller\n");
+                    dprintf(0, "[PCI] Ethernet Controller\n");
                     switch (new->subclass)
                     {
                     case 0x00:
@@ -205,4 +213,5 @@ void pci_init()
             }
         }
     }
+    dprintf(0, "[PCI] Scan done\n");
 }

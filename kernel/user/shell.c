@@ -60,10 +60,17 @@ bool mock_http_recieve(network_device *driver, tcp_header *tcp, void *data, size
 {
     http_response *resp = http_parse_response(data, data_size);
 
-    printf("%s\n", resp->data);
+    printf("%s (%d)\n", resp->response_string, resp->response_code);
+    http_header *header = resp->headers;
+    while (header)
+    {
+        printf("%s: %s\n", header->key, header->value);
+        header = header->next;
+    }
+    if (resp->data)
+        printf("\n%s\n", resp->data);
 
     http_free_response(resp);
-
     return true;
 }
 
@@ -157,7 +164,17 @@ void process_command(tty_interface *tty)
         tprintf(tty, "IP: %i\nNetmask: %i\nGateway: %i\nDNS: %i\nDHCP: %i\n", netdev->ip_c.ip, netdev->ip_c.netmask, netdev->ip_c.gateway, netdev->ip_c.dns, netdev->ip_c.dhcp);
         break;
     case COMMAND_DNS:
-        dns_print(tty);
+        if (num_args(args) == 1)
+            dns_print(tty);
+        else if (num_args(args) == 2)
+        {
+            if (strcmp("clear", args->next->val) == 0)
+                dns_clear_cache();
+            else
+                tprintf(tty, "Unknown subcommand!\n");
+        }
+        else
+            tprintf(tty, "Bad number of arguments!\n");
         break;
     case COMMAND_ECHO:
         echo_semaphore = false;

@@ -207,7 +207,7 @@ void dprintf(uint8_t debuglevel, const char *fmt, ...)
     if (!serial_get_tty())
         return;
 
-    if (debuglevel > 0)
+    if (debuglevel > 5)
         return;
         
     va_list a1, a2;

@@ -42,13 +42,21 @@ http_response *http_parse_response(void *data, size_t data_size)
 {
     http_response *ret = (http_response *)calloc(sizeof(http_response));
 
-    char *data_nocr = strrep(data, "\r\n", "\n");
+    char *data_limit = strcut(data, data_size);
     mfree(data);
+    char *data_nocr = strrep(data_limit, "\r\n", "\n");
+    mfree(data_limit);
 
     size_t firstnlloc = strfindchar(data_nocr, '\n');
     size_t contentstart = strfindstr(data_nocr, "\n\n");
 
     ret->response_string = strcut(data_nocr, firstnlloc);
+
+    size_t fs_loc = strfindchar(data_nocr, ' ');
+    size_t ss_loc = strfindchar(data_nocr + fs_loc, ' ');
+    char *resp_cut = strcut(data_nocr, fs_loc + ss_loc);
+    ret->response_code = atoi(resp_cut + fs_loc);
+    mfree(resp_cut);
 
     char *headers = strcut(data_nocr + firstnlloc, contentstart - firstnlloc + 1);
     size_t headers_len = strlen(headers);
@@ -62,19 +70,27 @@ http_response *http_parse_response(void *data, size_t data_size)
         char *key = strcut(header_string, seploc);
         char *val = strcut(header_string + seploc + 1, s - seploc - 1);
 
-        http_header *header = (http_header *)calloc(sizeof(http_header));
-        header->key = key;
-        header->value = val;
-        header->next = 0;
-
-        if (!(ret->headers))
-            ret->headers = header;
+        if (key[0] == 0)
+        {
+            mfree(key);
+            mfree(val);
+        }
         else
         {
-            http_header *ll = ret->headers;
-            while (ll->next)
-                ll = ll->next;
-            ll->next = header;
+            http_header *header = (http_header *)calloc(sizeof(http_header));
+            header->key = key;
+            header->value = val;
+            header->next = 0;
+
+            if (!(ret->headers))
+                ret->headers = header;
+            else
+            {
+                http_header *ll = ret->headers;
+                while (ll->next)
+                    ll = ll->next;
+                ll->next = header;
+            }
         }
 
         mfree(header_string);
@@ -95,10 +111,7 @@ http_response *http_parse_response(void *data, size_t data_size)
 
         ret->data = respdata;
     }
-
-    // // for (size_t i = 0; i < strlen(ret->data) + 1; i++)
-    // //     printf("%d %c\n", ret->data[i], ret->data[i]);
-
+    
     mfree(data_nocr);
     return ret;
 }
