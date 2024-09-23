@@ -1,9 +1,9 @@
 #include "com.h"
 
-#include "../../../hw/port.h"
-#include "../../../hw/cpu/pic.h"
-#include "../../serial.h"
-#include "../../../hw/mem.h"
+#include "serial.h"
+#include "../hw/port.h"
+#include "../hw/cpu/pic.h"
+#include "../hw/mem.h"
 
 bool com_has_data(com_device *dev)
 {

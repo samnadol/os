@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "../../../hw/cpu/irq.h"
+#include "../hw/cpu/irq.h"
 
 enum COM_Read_Registers
 {

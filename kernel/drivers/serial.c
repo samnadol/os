@@ -1,7 +1,7 @@
 #include "serial.h"
 
 #include "../hw/mem.h"
-#include "devices/serial/com.h"
+#include "com.h"
 #include "devices/serial/qemu-pci-serial.h"
 #include "../user/shell.h"
 #include "../lib/string.h"

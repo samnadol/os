@@ -1,0 +1,7 @@
+root structure:
+- drivers: physical, individual device drivers (NICs, serial cards, etc) and general drivers (keyboard, mouse, io, networking)
+- hw: core hardware (cpu, interrupts, ports, timer, memory)
+- lib: useful functions used multiple places elsewhere. no individual functionality
+- user: all userspace items (shell, scheduler, status bar, gui)
+- kernel.c: main kernel file, initializes all hardware and starts scheduler loop
+- multiboot.h: allows parsing of a multiboot header

@@ -3,7 +3,7 @@
 
 #include "../hw/pci.h"
 #include "../hw/cpu/irq.h"
-#include "devices/serial/com.h"
+#include "./com.h"
 #include "./tty.h"
 
 #define SERIAL_COM1 0x3F8

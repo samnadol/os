@@ -23,6 +23,7 @@ enum CommandHashes
     COMMAND_GUI = 0xB88788A,
     COMMAND_DHCP = 0x7C95AD04,
     COMMAND_HELP = 0x7C97D2EE,
+    COMMAND_IDE = 0xB887ED7,
 };
 
 void shell_init();

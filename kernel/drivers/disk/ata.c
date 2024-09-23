@@ -1,8 +1,8 @@
 #include "ata.h"
 
-#include "../../../hw/port.h"
-#include "../../../hw/timer.h"
-#include "../../../hw/mem.h"
+#include "../../hw/port.h"
+#include "../../hw/timer.h"
+#include "../../hw/mem.h"
 
 uint16_t *ata_28bit_pio_read_sector(ide_device d, uint32_t lba, uint32_t sectorcount)
 {
@@ -135,5 +135,7 @@ bool ata_write_word(ide_device d, uint32_t lba, uint16_t offset, uint16_t data)
 {
     uint16_t *old_data = ata_28bit_pio_read_sector(d, lba, 1);
     old_data[offset] = data;
-    return ata_28bit_pio_write_sector(d, lba, 1, old_data);
+    bool success = ata_28bit_pio_write_sector(d, lba, 1, old_data);
+    mfree(old_data);
+    return success;
 }

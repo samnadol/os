@@ -7,6 +7,7 @@
 #include "../hw/cpu/irq.h"
 #include "../hw/cpu/cpuid.h"
 #include "../hw/timer.h"
+#include "../drivers/disk/ide.h"
 #include "../drivers/net/l0/ethernet.h"
 #include "../drivers/net/l1/arp.h"
 #include "../drivers/net/l1/ip.h"
@@ -277,6 +278,9 @@ void process_command(tty_interface *tty)
     case COMMAND_MEMLEAK:
         mem_print_blocks(tty);
         break;
+    case COMMAND_IDE:
+        ide_test((uint16_t)timer_get_tick());
+        break;
     default:
         tprintf(tty, "UNKNOWN COMMAND %s (hash 0x%x)\n", args[0].val, hash(args[0].val));
     }
@@ -304,7 +308,7 @@ void process_command(tty_interface *tty)
 
 void shell_init()
 {
-    // printf("0x%x\n", hash("dhcp"));
+    // printf("0x%x\n", hash("ide"));
     printf("> ");
     typing_enabled = true;
 }

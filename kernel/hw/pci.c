@@ -5,7 +5,7 @@
 #include "cpu/system.h"
 #include "../lib/string.h"
 #include "../drivers/net/l0/ethernet.h"
-#include "../drivers/devices/io/ide.h"
+#include "../drivers/disk/ide.h"
 #include "../drivers/serial.h"
 
 pci_device *active_pci_device_list;

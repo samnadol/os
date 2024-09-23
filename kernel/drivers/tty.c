@@ -213,6 +213,10 @@ void dprintf(uint8_t debuglevel, const char *fmt, ...)
     va_list a1, a2;
     va_copy(a2, a1);
 
+    // va_start(a1, fmt);
+    // kprintf(vga_get_tty(), TTYColor_WHITE, fmt, a1);
+    // va_end(a1);
+
     va_start(a2, fmt);
     kprintf(serial_get_tty(), TTYColor_WHITE, fmt, a2);
     va_end(a2);

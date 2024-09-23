@@ -106,7 +106,7 @@ void ethernet_device_init(pci_device *pci)
         case E1000_E1000:
         case E1000_I217:
         case E1000_82577LM:
-        // case E1000_82579LM:
+            // case E1000_82579LM:
             dev = e1000_init(pci);
             break;
         default:
@@ -128,7 +128,10 @@ void ethernet_device_init(pci_device *pci)
     }
 
     if (dev == NULL)
+    {
+        dprintf(0, "[ETH] Device init failed!\n");
         return;
+    }
 
     dev->ip_c.ip = 0;
     dev->ip_c.netmask = 0;
@@ -142,7 +145,7 @@ void ethernet_device_init(pci_device *pci)
         return;
     }
 
-    dprintf(2, "[ETH] NIC configuration done\n");
+    dprintf(1, "[ETH] NIC configuration done\n");
 
     irq_register(IRQ0 + pci->int_line, ethernet_irq_handler);
     dev->int_enable(dev);
