@@ -73,8 +73,14 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 	init_mem(&biggest_mem_segment);
 	tty_init();
 	tty_clear_screen(vga_get_tty());
-
 	vga_get_tty()->tty_print(TTYColor_WHITE, "\n");
+
+	// for (i = 0; i < mbd->mmap_length; i += sizeof(multiboot_memory_map_t))
+	// {
+	// 	multiboot_memory_map_t *mmmt = (multiboot_memory_map_t *)(mbd->mmap_addr + i);
+	// 	printf("mmapseg %x %x %x\n", (uint32_t)(mmmt->addr), (uint32_t)(mmmt->addr) + (uint32_t)(mmmt->len), mmmt->type);
+	// }
+
 	printf("            _____      \n\
            |____ |     \n\
   ___  ___     / /     \n\

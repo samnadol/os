@@ -8,7 +8,7 @@
 #include "gui/gui.h"
 #include "status.h"
 
-static void (*scheduled_functions[10])();
+static void (*scheduled_functions[10])(void *);
 static void *scheduled_data[10];
 static int current_func;
 

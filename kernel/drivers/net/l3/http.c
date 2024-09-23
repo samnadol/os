@@ -42,6 +42,13 @@ http_response *http_parse_response(void *data, size_t data_size)
 {
     http_response *ret = (http_response *)calloc(sizeof(http_response));
 
+    if (data_size > 1000)
+    {
+        printf("[HTTP] response is too big to show (%f)\n", data_size);
+        mfree(data);
+        return 0;
+    }
+
     char *data_limit = strcut(data, data_size);
     mfree(data);
     char *data_nocr = strrep(data_limit, "\r\n", "\n");
@@ -111,7 +118,7 @@ http_response *http_parse_response(void *data, size_t data_size)
 
         ret->data = respdata;
     }
-    
+
     mfree(data_nocr);
     return ret;
 }
@@ -189,7 +196,7 @@ bool http_send_request(network_device *netdev, uint32_t dip, uint16_t dport, cha
             break;
     }
 
-    // REMOVE FROM LINKED LIST
+    // // REMOVE FROM LINKED LIST
     http_listener_entry *current = http_listeners;
     while (current)
     {

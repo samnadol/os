@@ -60,19 +60,22 @@ void echo_listener(network_device *netdev, ip_header *ip, udp_header *udp, void 
 bool mock_http_recieve(network_device *driver, tcp_header *tcp, void *data, size_t data_size)
 {
     http_response *resp = http_parse_response(data, data_size);
-
-    printf("%s (%d)\n", resp->response_string, resp->response_code);
-    http_header *header = resp->headers;
-    while (header)
+    if (resp)
     {
-        printf("%s: %s\n", header->key, header->value);
-        header = header->next;
-    }
-    if (resp->data)
-        printf("\n%s\n", resp->data);
+        printf("%s (%d)\n", resp->response_string, resp->response_code);
+        http_header *header = resp->headers;
+        while (header)
+        {
+            printf("%s: %s\n", header->key, header->value);
+            header = header->next;
+        }
+        if (resp->data)
+            printf("\n%s\n", resp->data);
 
-    http_free_response(resp);
-    return true;
+        http_free_response(resp);
+        return true;
+    }
+    return false;
 }
 
 /*

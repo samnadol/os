@@ -11,7 +11,7 @@ K_H := $(shell find kernel/ -type f -name '*.h')
 # development
 	
 run_kernel_i386: build/os.bin
-	qemu-system-i386 -m 32M \
+	qemu-system-i386 -m 8M \
 	-kernel build/os.bin \
 	-serial stdio \
 	-object filter-dump,id=f1,netdev=eth,file=qemu-pktlog.pcap \
@@ -21,7 +21,7 @@ run_kernel_i386: build/os.bin
 #	-chardev stdio,id=serial1 -device pci-serial,chardev=serial1 \
 
 run_cdrom_i386: build/os.iso
-	qemu-system-i386 -m 32M \
+	qemu-system-i386 -m 8M \
 	-cdrom build/os.iso \
 	-serial stdio \
 	-hda os.img \

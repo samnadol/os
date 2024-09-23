@@ -11,12 +11,13 @@
 typedef struct tcp_cache_entry
 {
     uint16_t port;
-    bool syn;
+    uint8_t state;
     uint32_t seq;
     uint32_t ack;
 
     uint32_t seqbase;
     uint32_t ackbase;
+    uint32_t expseq;
     bool closing;
 
     struct tcp_cache_entry *next;
@@ -244,7 +245,7 @@ uint16_t tcp_calculate_checksum(tcp_header *header, uint32_t sip, uint32_t dip, 
 
 bool tcp_send_packet(network_device *netdev, uint32_t sip, uint16_t sport, uint32_t dip, uint16_t dport, uint32_t seqno, uint32_t ackno, bool syn, bool ack, bool fin, bool psh, void *data, size_t data_size)
 {
-    dprintf(3, "[TCP] sending packet to port %d (ip %i)\n", dport, dip);
+    // printf("= TCPN sending packet to port %d (ip %i), size %d\n", dport, dip, sizeof(ip_header) + data_size + sizeof(tcp_header) + sizeof(ethernet_header));
 
     tcp_header *header = (tcp_header *)calloc(sizeof(tcp_header));
     header->sport = htons(sport);
@@ -268,6 +269,29 @@ bool tcp_send_packet(network_device *netdev, uint32_t sip, uint16_t sport, uint3
     return res;
 }
 
+void tcp_assemble_data(network_device *netdev, ip_header *ip, tcp_header *tcp)
+{
+    if (get_tcp_listener(tcp->dport))
+    {
+        tcp_cache_entry *ce = tcp_get_cache(tcp->dport);
+        if (ce)
+        {
+            tcp_datapart *complete_data = tcp_get_datapart(ce->seq - 1);
+            if (complete_data)
+            {
+                // printf("= TCPN finished data packet, len %d, %d parts\n", complete_data->data_length, complete_data->num_parts);
+                tcp_listener listener = get_tcp_listener(tcp->dport)->listener;
+                listener(netdev, tcp, complete_data->data, complete_data->data_length);
+                tcp_delete_datapart(ce->seq);
+            }
+            else
+            {
+                printf("= TCPN datapart missing for seq %d\n", ce->seq);
+            }
+        }
+    }
+}
+
 void tcp_receive_packet(network_device *netdev, ip_header *ip, tcp_header *tcp, void *headerdata_payload)
 {
     size_t payload_len = ntohs(ip->total_length) - sizeof(ip_header) - sizeof(tcp_header);
@@ -288,93 +312,66 @@ void tcp_receive_packet(network_device *netdev, ip_header *ip, tcp_header *tcp, 
     tcp->sport = ntohs(tcp->sport);
     tcp->dport = ntohs(tcp->dport);
 
-    dprintf(3, "[TCP] got packet for port %d\n", tcp->dport);
-
-    if (tcp->flags.syn && tcp->flags.ack) // SYN ACK
+    tcp_cache_entry *ce = tcp_get_cache(tcp->dport);
+    if (ce)
     {
-        tcp_cache_entry *ce = tcp_get_cache(tcp->dport);
-        if (ce)
+        if (tcp->flags.syn && tcp->flags.ack)
         {
-            ce->syn = true;
-            ce->seq = ntohl(tcp->ackno);
-            ce->ack = ntohl(tcp->seqno) + 1;
+            tcp_cache_entry *ce = tcp_get_cache(tcp->dport);
+            ce->state = 1;
             ce->ackbase = ntohl(tcp->seqno);
 
-            // printf("[TCP] SYN ACK seq %d (%d), ack %d (%d)\n", ntohl(tcp->seqno) - tcp_cache[i].ackbase, ntohl(tcp->seqno), ntohl(tcp->ackno) - tcp_cache[i].seqbase, ntohl(tcp->ackno));
+            ce->seq = ntohl(tcp->ackno);
+            ce->ack = ntohl(tcp->seqno) + 1;
+
+            // printf("= TCPN SYN ACK seq %d (%d), ack %d (%d)\n", ntohl(tcp->seqno) - ce->ackbase, ntohl(tcp->seqno), ntohl(tcp->ackno) - ce->seqbase, ntohl(tcp->ackno));
             tcp_send_packet(netdev, netdev->ip_c.ip, tcp->dport, ntohl(ip->sip), tcp->sport, ntohl(tcp->ackno), ntohl(tcp->seqno) + 1, false, true, false, false, NULL, 0);
+            return;
         }
-        return;
-    }
 
-    if (tcp->flags.fin && tcp->flags.ack) // FIN
-    {
-        tcp_cache_entry *ce = tcp_get_cache(tcp->dport);
-        if (ce)
+        if (tcp->flags.ack)
         {
-            ce->syn = false;
-            ce->ack = 0;
+            ce->seq = ntohl(tcp->ackno);
+            ce->ack = ntohl(tcp->seqno) + payload_len;
 
-            if (ce->closing)
+            if (payload_len > 0)
             {
-                dprintf(3, "[TCP] connection closed (client initiated)\n");
-                tcp_send_packet(netdev, netdev->ip_c.ip, tcp->dport, ntohl(ip->sip), tcp->sport, ntohl(tcp->ackno), ntohl(tcp->seqno) + 1, false, true, false, false, NULL, 0);
-                tcp_remove_cache(tcp->dport);
+                if (ce->state == 1)
+                {
+                    // printf("= TCPN ACK (data)\n");
+                    tcp_add_datapart(ce->seq, payload, payload_len);
+                    tcp_send_packet(netdev, netdev->ip_c.ip, tcp->dport, ntohl(ip->sip), tcp->sport, ce->seq, ce->ack, false, true, false, false, NULL, 0);
+                }
             }
             else
             {
-                dprintf(3, "[TCP] got FIN (server initiated)\n");
-                tcp_send_packet(netdev, netdev->ip_c.ip, tcp->dport, ntohl(ip->sip), tcp->sport, ntohl(tcp->ackno), ntohl(tcp->seqno) + 1, false, true, true, false, NULL, 0);
+                if (ce->state == 1 && !tcp->flags.fin)
+                {
+                    // printf("= TCPN ACK (no data)\n");
+                }
+
+                if (ce->state == 2)
+                {
+                    // printf("= TCPN ACK (to FIN, connection closed)\n");
+                    tcp_assemble_data(netdev, ip, tcp);
+                    tcp_remove_cache(tcp->dport);
+                }
             }
         }
-        return;
-    }
 
-    if (tcp->flags.psh) // DATA END
-    {
-        // printf("%d\n", tcp->dport);
-        if (get_tcp_listener(tcp->dport))
+        if (tcp->flags.fin)
         {
-            // printf("%d %p\n", tcp->dport, get_tcp_listener(tcp->dport));
-
-            tcp_cache_entry *ce = tcp_get_cache(tcp->dport);
-            if (ce)
+            if (ce->state == 1)
             {
-                ce->seq = ntohl(tcp->ackno);
-                ce->ack = ntohl(tcp->seqno) + payload_len;
-
-                if (payload_len > 0)
-                    tcp_add_datapart(ce->seq, payload, payload_len);
-                // printf("[TCP] PSH seq %d, ack %d, len %d\n", ntohl(tcp->seqno), ntohl(tcp->ackno), payload_len);
-
-                tcp_datapart *complete_data = tcp_get_datapart(ce->seq);
-                dprintf(3, "[TCP] finished data packet, len %d, %d parts\n", complete_data->data_length, complete_data->num_parts);
-                tcp_listener listener = get_tcp_listener(tcp->dport)->listener;
-                listener(netdev, tcp, complete_data->data, complete_data->data_length);
-                tcp_delete_datapart(ce->seq);
-
+                // printf("= TCPN FIN (new FIN, from server)\n");
+                ce->state = 2;
+                tcp_send_packet(netdev, netdev->ip_c.ip, tcp->dport, ntohl(ip->sip), tcp->sport, ce->seq, ce->ack + 1, false, true, true, false, NULL, 0);
+            }
+            else
+            {
+                // printf("= TCPN FIN (server's response to client FIN) %d\n", ce->state);
                 tcp_send_packet(netdev, netdev->ip_c.ip, tcp->dport, ntohl(ip->sip), tcp->sport, ce->seq, ce->ack, false, true, false, false, NULL, 0);
-            }
-        }
-        return;
-    }
-
-    if (tcp->flags.ack) // ACK / DATA PART
-    {
-        tcp_cache_entry *ce = tcp_get_cache(tcp->dport);
-        if (ce)
-        {
-            if (ce->syn)
-            {
-                ce->ack = ntohl(tcp->seqno);
-                ce->seq = ntohl(tcp->ackno);
-
-                if (payload_len > 0)
-                    tcp_add_datapart(ce->seq, payload, payload_len);
-                // printf("[TCP] ACK seq %d, ack %d, len %d\n", ntohl(tcp->seqno), ntohl(tcp->ackno), payload_len);
-            }
-            else
-            {
-                dprintf(3, "[TCP] connection closed (server initiated)\n");
+                tcp_assemble_data(netdev, ip, tcp);
                 tcp_remove_cache(tcp->dport);
             }
         }
@@ -387,7 +384,7 @@ bool tcp_connection_transmit(network_device *netdev, uint32_t sip, uint32_t dip,
     if (!ce)
         return false;
 
-    uint32_t exp_seq = ce->seq + data_size;
+    ce->expseq = ce->seq + data_size;
     if (!tcp_send_packet(netdev, sip, sport, dip, dport, ce->seq, ce->ack, false, true, false, true, data, data_size))
         return false;
 
@@ -396,13 +393,13 @@ bool tcp_connection_transmit(network_device *netdev, uint32_t sip, uint32_t dip,
     {
         timer_wait(10);
 
-        if (ce->seq == exp_seq)
+        if (ce->seq == ce->expseq)
             return true;
 
         if (t % (TCP_RETRANSMISSION_DELAY / 10)) // retranmission delay
         {
-            if (!tcp_send_packet(netdev, sip, sport, dip, dport, ce->seq, ce->ack, false, true, false, true, data, data_size))
-                return false;
+            // if (!tcp_send_packet(netdev, sip, sport, dip, dport, ce->seq, ce->ack, false, true, false, true, data, data_size))
+            //     return false;
             retransmissions += 1;
         }
 
@@ -423,7 +420,7 @@ bool tcp_connection_open(network_device *netdev, uint32_t sip, uint32_t dip, uin
 
     tcp_cache_entry *ce = (tcp_cache_entry *)calloc(sizeof(tcp_cache_entry));
     ce->port = sport;
-    ce->syn = false;
+    ce->state = 0;
     ce->seq = rand(32768);
     ce->seqbase = ce->seq;
     ce->ack = 0;
@@ -452,7 +449,7 @@ bool tcp_connection_open(network_device *netdev, uint32_t sip, uint32_t dip, uin
     {
         timer_wait(10);
 
-        if (ce->syn)
+        if (ce->state > 0)
         {
             dprintf(3, "[TCP] connection established\n");
             return true;
