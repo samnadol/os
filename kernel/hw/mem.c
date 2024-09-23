@@ -137,7 +137,7 @@ void mfree(void *ptr)
         return;
 
     mem_node_t *free = (mem_node_t *)((uint8_t *)ptr - MEM_1NODE_SIZE);
-    dprintf(3, "[MEM] free %p (%d b)\n", ptr, free->size);
+    // dprintf(3, "[MEM] free %p (%d b)\n", ptr, free->size);
     ptr = NULL;
 
     if (free == NULL || free->magic_number != 0xDEADBEEF)

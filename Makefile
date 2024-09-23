@@ -11,23 +11,25 @@ K_H := $(shell find kernel/ -type f -name '*.h')
 # development
 	
 run_kernel_i386: build/os.bin
-	qemu-system-i386 -m 8M \
+	qemu-system-i386 -m 32M \
 	-kernel build/os.bin \
 	-serial stdio \
 	-object filter-dump,id=f1,netdev=eth,file=qemu-pktlog.pcap \
-	-netdev user,id=eth -device e1000,netdev=eth
-#	-hda os.qcow2 \
+	-netdev user,id=eth -device e1000,netdev=eth \
+	-hda os.qcow2
 #	-nographic \
 #	-chardev stdio,id=serial1 -device pci-serial,chardev=serial1 \
 
-run_cdrom_vmware: build/os.iso
-	vboxmanage startvm os
-
 run_cdrom_i386: build/os.iso
-	qemu-system-i386 -s -m 32M \
+	qemu-system-i386 -m 32M \
 	-cdrom build/os.iso \
+	-serial stdio \
+	-hda os.qcow2 \
 	-object filter-dump,id=f1,netdev=eth,file=qemu-pktlog.pcap \
 	-netdev user,id=eth -device e1000,netdev=eth 
+
+run_cdrom_vmware: build/os.iso
+	vboxmanage startvm os
 
 run_kernel_x86_64: build/os.bin
 	qemu-system-x86_64 -s -m 32M \

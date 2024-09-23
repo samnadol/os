@@ -82,6 +82,8 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 | (_) \\__ \\____/ /   \n\
  \\___/|___/\\____/    \n");
 
+	// printf("%s\n", (char *)mbd->cmdline);
+
 	status_init();
 	status_update();
 
@@ -106,8 +108,11 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 	dns_init();
 
 	pci_init();
-	dhcp_init(ethernet_first_netdev());
-	status_update_wan_ip();
+	if (ethernet_first_netdev())
+	{
+		dhcp_init(ethernet_first_netdev());
+		status_update_wan_ip();
+	}
 
 	// vga_switch_mode(VGA_GUI);
 	// gui_init();

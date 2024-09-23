@@ -5,7 +5,7 @@
 #include "cpu/system.h"
 #include "../lib/string.h"
 #include "../drivers/net/l0/ethernet.h"
-#include "../drivers/devices/io/ata.h"
+#include "../drivers/devices/io/ide.h"
 #include "../drivers/serial.h"
 
 pci_device *active_pci_device_list;
@@ -106,7 +106,7 @@ void pci_print(tty_interface *tty)
                     continue;
 
                 tprintf(tty, "%d:%d:%d %s\n", bus, slot, function, pci_device_active(bus, slot, function) ? "(ACTIVE)" : "");
-                tprintf(tty, "\t%x %x %x\n", vendor, pci_get_device_id(bus, slot, function), pci_get_class_id(bus, slot, function));
+                tprintf(tty, "\t%x:%x %x:%x\n", vendor, pci_get_device_id(bus, slot, function), pci_get_class_id(bus, slot, function), pci_get_subclass_id(bus, slot, function));
             }
         }
     }
@@ -123,7 +123,7 @@ void init_device(pci_device *dev, void (*driver_init)(pci_device *dev))
     for (int i = 0; i < 6; i += 1)
     {
         uint32_t res = pci_conf_inl(dev->bus, dev->slot, dev->function, 0x10 + (i * 0x04));
-        dev->bar[i] = (uint32_t)(res & ~0b111);
+        dev->bar[i] = (uint32_t)(res & ~0b1);
     }
 
     dev->revision = pci_conf_inl(dev->bus, dev->slot, dev->function, 0x08) & 0xFF;
@@ -166,11 +166,12 @@ void pci_init()
                 switch (new->class)
                 {
                 case 0x01:
-                    dprintf(0, "[PCI] Mass Storage Controller\n");
+                    dprintf(0, "[PCI] Mass Storage Controller %x:%x\n", new->class, new->subclass);
                     switch (new->subclass)
                     {
                     case 0x01:
-                        init_device(new, ata_device_init);
+                    case 0x06:
+                        init_device(new, ide_device_init);
                         break;
                     default:
                         mfree(new);
@@ -178,7 +179,7 @@ void pci_init()
                     }
                     break;
                 case 0x02:
-                    dprintf(0, "[PCI] Ethernet Controller\n");
+                    dprintf(0, "[PCI] Ethernet Controller %x:%x\n", new->class, new->subclass);
                     switch (new->subclass)
                     {
                     case 0x00:
