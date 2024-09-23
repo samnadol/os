@@ -16,7 +16,7 @@ run_kernel_i386: build/os.bin
 	-serial stdio \
 	-object filter-dump,id=f1,netdev=eth,file=qemu-pktlog.pcap \
 	-netdev user,id=eth -device e1000,netdev=eth \
-	-hda os.qcow2
+	-hda rand.img
 #	-nographic \
 #	-chardev stdio,id=serial1 -device pci-serial,chardev=serial1 \
 

@@ -89,6 +89,6 @@ void mouse_init()
     // Enable the mouse
     mouse_write(0xF4);
     mouse_read(); // Acknowledge
-
+    
     irq_register(IRQ12, mouse_handler);
 }

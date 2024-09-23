@@ -81,14 +81,19 @@ void irq_handler(registers_t *r)
     if (!current)
         return;
 
+    // bool handled = false;
     while (current)
     {
         if (r->int_no == current->int_no)
         {
             current->handler(r);
+            // handled = true;
         }
         current = current->next;
     }
+
+    // if (!handled)
+    //     printf("UNHANDLED IRQ %d\n", r->int_no - IRQ0);
 
     pic_int_end(r->int_no - 32);
 }

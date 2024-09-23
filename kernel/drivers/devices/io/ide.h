@@ -2,6 +2,51 @@
 
 #include "../../../hw/pci.h"
 
+enum ATAPI_CMD
+{
+    ATAPI_CMD_READ = 0xA8,
+    ATAPI_CMD_EJECT = 0x1B,
+};
+
+enum ATA_IDENT
+{
+    ATA_IDENT_DEVICETYPE = 0,
+    ATA_IDENT_CYLINDERS = 2,
+    ATA_IDENT_HEADS = 6,
+    ATA_IDENT_SECTORS = 12,
+    ATA_IDENT_SERIAL = 20,
+    ATA_IDENT_MODEL = 54,
+    ATA_IDENT_CAPABILITIES = 98,
+    ATA_IDENT_FIELDVALID = 106,
+    ATA_IDENT_MAX_LBA = 120,
+    ATA_IDENT_COMMANDSETS = 164,
+    ATA_IDENT_MAX_LBA_EXT = 200
+};
+
+enum IDE_INTERFACE
+{
+    IDE_INTERFACE_ATA = 0x00,
+    IDE_INTERFACE_ATAPI = 0x01
+};
+
+enum ATA_DEVICE
+{
+    ATA_DEVICE_MASTER = 0x00,
+    ATA_DEVICE_SLAVE = 0x01
+};
+
+enum ATA_CHANNEL
+{
+    ATA_CHANNEL_PRIMARY = 0x00,
+    ATA_CHANNEL_SECONDARY = 0x01
+};
+
+enum ATA_DIRECTION
+{
+    ATA_DIRECTION_READ = 0x00,
+    ATA_DIRECTION_WRITE = 0x01
+};
+
 enum ATA_SR
 {
     ATA_SR_BSY = 0x80,  // Busy
@@ -64,49 +109,29 @@ enum ATA_REG
     ATA_REG_DEVADDRESS = 0x0D
 };
 
-enum ATAPI_CMD
+typedef struct ide_channel
 {
-    ATAPI_CMD_READ = 0xA8,
-    ATAPI_CMD_EJECT = 0x1B,
-};
+    uint16_t io_base;   // I/O Base.
+    uint16_t ctrl_base; // Control Base
+    uint16_t bmIDE;     // Bus Master IDE
+    uint8_t nIEN;       // nIEN (No Interrupt);
+} ide_channel;
 
-enum ATA_IDENT
+typedef struct ide_device
 {
-    ATA_IDENT_DEVICETYPE = 0,
-    ATA_IDENT_CYLINDERS = 2,
-    ATA_IDENT_HEADS = 6,
-    ATA_IDENT_SECTORS = 12,
-    ATA_IDENT_SERIAL = 20,
-    ATA_IDENT_MODEL = 54,
-    ATA_IDENT_CAPABILITIES = 98,
-    ATA_IDENT_FIELDVALID = 106,
-    ATA_IDENT_MAX_LBA = 120,
-    ATA_IDENT_COMMANDSETS = 164,
-    ATA_IDENT_MAX_LBA_EXT = 200
-};
-
-enum IDE_INTERFACE
-{
-    IDE_INTERFACE_ATA = 0x00,
-    IDE_INTERFACE_ATAPI = 0x01
-};
-
-enum ATA_DEVICE
-{
-    ATA_DEVICE_MASTER = 0x00,
-    ATA_DEVICE_SLAVE = 0x01
-};
-
-enum ATA_CHANNEL
-{
-    ATA_CHANNEL_PRIMARY = 0x00,
-    ATA_CHANNEL_SECONDARY = 0x01
-};
-
-enum ATA_DIRECTION
-{
-    ATA_DIRECTION_READ = 0x00,
-    ATA_DIRECTION_WRITE = 0x01
-};
+    uint8_t reserved;      // 0 (Empty) or 1 (This Drive really exists).
+    ide_channel channel;   // channel (primary or secondary)
+    uint8_t drive;         // 0 (Master Drive) or 1 (Slave Drive).
+    uint16_t type;         // 0: ATA, 1:ATAPI.
+    uint16_t signature;    // Drive Signature
+    uint16_t capabilities; // Features.
+    uint32_t command_sets; // Command Sets Supported.
+    uint32_t size;         // Size in Sectors.
+    uint32_t sector_size;  // sector size, in words
+    uint8_t model[41];     // Model in string.
+} ide_device;
 
 void ide_device_init(pci_device *pci);
+
+void ide_write(ide_channel c, uint8_t reg, uint8_t data);
+uint8_t ide_read(ide_channel c, uint8_t reg);
