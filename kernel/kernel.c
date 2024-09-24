@@ -118,7 +118,7 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 	if (ethernet_first_netdev())
 	{
 		dhcp_init(ethernet_first_netdev());
-		status_update_wan_ip();
+		// status_update_wan_ip();
 		time_request(ethernet_first_netdev());
 	}
 
