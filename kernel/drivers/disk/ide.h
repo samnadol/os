@@ -136,4 +136,4 @@ void ide_device_init(pci_device *pci);
 void ide_write(ide_channel c, uint8_t reg, uint8_t data);
 uint8_t ide_read(ide_channel c, uint8_t reg);
 
-void ide_test(uint16_t word);
+void ide_test(tty_interface *tty, uint16_t word);

@@ -5,17 +5,20 @@
 #include "../../../hw/timer.h"
 #include "../../../lib/arpa/inet.h"
 
-uint32_t epoch = 0;
+#define SEVENTY_YEARS_SECONDS 2208988800L
+#define TIME_PORT 12552
+
+uint32_t epoch_1900 = 0;
 
 uint32_t time_unix_epoch()
 {
-    return epoch + timer_get_epoch();
+    return epoch_1900 + timer_get_epoch() - SEVENTY_YEARS_SECONDS;
 }
 
 void time_receive(network_device *netdev, ip_header *ip, udp_header *udp, void *data, size_t data_size)
 {
-    epoch = ntohl(*((uint32_t *)data)) - 2208985200;
-    udp_uninstall_listener(5000);
+    epoch_1900 = ntohl(*((uint32_t *)data));
+    udp_uninstall_listener(TIME_PORT);
 }
 
 bool time_request(network_device *netdev)
@@ -24,12 +27,12 @@ bool time_request(network_device *netdev)
     if (ans)
     {
         uint32_t ip = (ans->data[0] << 24) | (ans->data[1] << 16) | (ans->data[2] << 8) | (ans->data[3] << 0);
-        udp_install_listener(5000, time_receive);
-        uint32_t old_epoch = epoch;
-        udp_send_packet(netdev, netdev->ip_c.ip, 5000, ip, 37, "TIME", 5);
+        udp_install_listener(TIME_PORT, time_receive);
+        uint32_t old_epoch = epoch_1900;
+        udp_send_packet(netdev, netdev->ip_c.ip, TIME_PORT, ip, 37, "TIME", 5);
 
         uint32_t timeout = 0;
-        while (old_epoch == epoch)
+        while (old_epoch == epoch_1900)
         {
             if (timeout > 1000)
                 return false;

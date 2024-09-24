@@ -4,6 +4,7 @@
 #include "../hw/pci.h"
 #include "../drivers/vga/vga.h"
 #include "../lib/string.h"
+#include "../lib/time.h"
 #include "../hw/cpu/irq.h"
 #include "../hw/cpu/cpuid.h"
 #include "../hw/timer.h"
@@ -17,6 +18,7 @@
 #include "../drivers/net/l3/dns.h"
 #include "../drivers/net/l3/http.h"
 #include "../drivers/net/l3/dhcp.h"
+#include "../drivers/net/l3/time.h"
 #include "scheduler.h"
 #include "gui/gui.h"
 
@@ -282,7 +284,12 @@ void process_command(tty_interface *tty)
         mem_print_blocks(tty);
         break;
     case COMMAND_IDE:
-        ide_test((uint16_t)timer_get_tick());
+        ide_test(tty, (uint16_t)timer_get_tick());
+        break;
+    case COMMAND_TIME:
+        char *buf = (char *)calloc(30);
+        tprintf(tty, "%s\n", convert_time(time_unix_epoch(), buf));
+        mfree(buf);
         break;
     default:
         tprintf(tty, "UNKNOWN COMMAND %s (hash 0x%x)\n", args[0].val, hash(args[0].val));
@@ -311,7 +318,7 @@ void process_command(tty_interface *tty)
 
 void shell_init()
 {
-    // printf("0x%x\n", hash("ide"));
+    // printf("0x%x\n", hash("time"));
     printf("> ");
     typing_enabled = true;
 }

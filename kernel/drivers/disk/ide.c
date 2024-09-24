@@ -212,7 +212,7 @@ void ide_device_init(pci_device *pci)
         }
 }
 
-void ide_test(uint16_t word)
+void ide_test(tty_interface *tty, uint16_t word)
 {
     for (size_t i = 0; i < 4; i++)
     {
@@ -221,7 +221,7 @@ void ide_test(uint16_t word)
             if (ide_devices[i]->type == 0)
             {
                 ata_write_word(*(ide_devices[0]), 0, 0, word);
-                printf("%d\n", ata_read_word(*(ide_devices[i]), 0, 0));
+                tprintf(tty, "%d\n", ata_read_word(*(ide_devices[i]), 0, 0));
             }
         }
     }
