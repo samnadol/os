@@ -6,8 +6,8 @@
 #include "../../../hw/cpu/irq.h"
 
 #define NUM_ETHERNET_DEVICE 2
-#define NUM_RX_DESC 64
-#define NUM_TX_DESC 64
+#define NUM_RX_DESC 32
+#define NUM_TX_DESC 16
 
 #define E1000_VEND 0x8086    // Vendor ID for Intel
 #define E1000_E1000 0x100E   // Device ID for the e1000 Qemu, Bochs, and VirtualBox emmulated NICs
