@@ -10,6 +10,7 @@
 #include "drivers/net/l3/dhcp.h"
 #include "drivers/net/l3/dns.h"
 #include "drivers/net/l3/http.h"
+#include "drivers/net/l3/time.h"
 #include "lib/string.h"
 #include "hw/cpu/cpuid.h"
 #include "hw/cpu/interrupts.h"
@@ -118,6 +119,7 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 	{
 		dhcp_init(ethernet_first_netdev());
 		status_update_wan_ip();
+		time_request(ethernet_first_netdev());
 	}
 
 	// vga_switch_mode(VGA_GUI);
