@@ -153,6 +153,11 @@ ide_device *ide_device_detect(ide_channel c, uint8_t drive_bit)
     return d;
 }
 
+// void disk_interrupt_handler(registers_t *r)
+// {
+//     printf("disk interrupt\n");
+// }
+
 void ide_device_init(pci_device *pci)
 {
     // if BARs are 0, ide controller is indicating it wants to use legacy ports, set BARs to those
@@ -210,6 +215,8 @@ void ide_device_init(pci_device *pci)
             //     printf("%x\n", data);
             // }
         }
+
+    // irq_register(IRQ14, disk_interrupt_handler);
 }
 
 void ide_test(tty_interface *tty, uint16_t word)
