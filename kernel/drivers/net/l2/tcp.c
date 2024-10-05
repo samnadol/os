@@ -286,7 +286,7 @@ void tcp_assemble_data(network_device *netdev, ip_header *ip, tcp_header *tcp)
             }
             else
             {
-                printf("= TCPN datapart missing for seq %d\n", ce->seq);
+                // printf("= TCPN datapart missing for seq %d\n", ce->seq);
             }
         }
     }
@@ -304,7 +304,7 @@ void tcp_receive_packet(network_device *netdev, ip_header *ip, tcp_header *tcp, 
     tcp->checksum = 0;
     if (checksum != tcp_calculate_checksum(tcp, ip->sip, ip->dip, headerdata_payload, payload_len))
     {
-        printf("[TCP] received, checksum invalid (expected %x, actual %x)\n", tcp_calculate_checksum(tcp, ip->sip, ip->dip, headerdata_payload, payload_len), checksum);
+        // printf("[TCP] received, checksum invalid (expected %x, actual %x)\n", tcp_calculate_checksum(tcp, ip->sip, ip->dip, headerdata_payload, payload_len), checksum);
         return;
     }
     tcp->checksum = checksum;
