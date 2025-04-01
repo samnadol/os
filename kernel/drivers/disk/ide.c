@@ -6,7 +6,6 @@
 #include "../../hw/port.h"
 #include "../../hw/timer.h"
 #include "../../hw/mem.h"
-#include "fs/fat12.h"
 
 ide_channel ide_channels[2];
 ide_device *ide_devices[4];
@@ -220,7 +219,7 @@ void ide_device_init(pci_device *pci)
     irq_register(IRQ14, disk_interrupt_handler);
 }
 
-void ide_test(tty_interface *tty, uint16_t word)
+ide_device *ide_first_disk()
 {
     for (size_t i = 0; i < 4; i++)
     {
@@ -228,21 +227,9 @@ void ide_test(tty_interface *tty, uint16_t word)
         {
             if (ide_devices[i]->type == 0)
             {
-                fat_test(ide_devices[i]);
-
-                // int index = 0;
-                // ata_write_word(*(ide_devices[0]), 0, index++, word);
-
-                // int text_index = 0;
-                // const char *text = "Hello from OS3! This was written using the IDE and ATA drivers.\0";
-                // while (text[text_index])
-                // {
-                //     ata_write_word(*(ide_devices[0]), 0, index++, text[text_index + 1] << 8 | text[text_index]);
-                //     text_index += 2;
-                // }
-
-                // tprintf(tty, "%d\n", ata_read_word(*(ide_devices[i]), 0, 0));
+                return ide_devices[i];
             }
         }
     }
+    return 0;
 }

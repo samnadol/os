@@ -4,6 +4,7 @@
 #include "drivers/vga/vga.h"
 #include "drivers/serial.h"
 #include "drivers/devices/net/e1000.h"
+#include "drivers/disk/fs/fs.h"
 #include "drivers/net/l1/arp.h"
 #include "drivers/net/l2/udp.h"
 #include "drivers/net/l2/tcp.h"
@@ -130,6 +131,9 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 			// sendTLSHandshake(ethernet_first_netdev());
 		}
 	}
+
+	// required for disk
+	fs_init(ide_first_disk());
 
 	// vga_switch_mode(VGA_GUI);
 	// gui_init();

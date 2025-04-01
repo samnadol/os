@@ -20,38 +20,38 @@ void *memset(void *ptr, int value, size_t num)
 
 void *memcpy(void *to, void *from, size_t n)
 {
-    size_t i = 0;
+    // size_t i = 0;
     void *ret = to;
 
-    for (i = 0; i < n / 8; i++)
-    {
-        *(uint64_t *)to = *(uint64_t *)from;
+    // for (i = 0; i < n / 8; i++)
+    // {
+    //     *(uint64_t *)to = *(uint64_t *)from;
 
-        from += 8;
-        to += 8;
-    }
+    //     from += 8;
+    //     to += 8;
+    // }
 
-    n -= i * 8;
+    // n -= i * 8;
 
-    for (i = 0; i < n / 4; i++)
-    {
-        *(uint32_t *)to = *(uint32_t *)from;
+    // for (i = 0; i < n / 4; i++)
+    // {
+    //     *(uint32_t *)to = *(uint32_t *)from;
 
-        from += 4;
-        to += 4;
-    }
+    //     from += 4;
+    //     to += 4;
+    // }
 
-    n -= i * 4;
+    // n -= i * 4;
 
-    for (i = 0; i < n / 2; i++)
-    {
-        *(uint16_t *)to = *(uint16_t *)from;
+    // for (i = 0; i < n / 2; i++)
+    // {
+    //     *(uint16_t *)to = *(uint16_t *)from;
 
-        from += 2;
-        to += 2;
-    }
+    //     from += 2;
+    //     to += 2;
+    // }
 
-    n -= i * 2;
+    // n -= i * 2;
 
     uint8_t *c_src = (uint8_t *)from;
     uint8_t *c_dest = (uint8_t *)to;

@@ -1,9 +1,16 @@
 #ifndef __FAT_12_
 #define __FAT_12_
 
-#include "../ata.h"
+#include "../../ata.h"
+#include "../fs.h"
 
-void fat_test(ide_device *ide);
+struct FSDriver *fat12_init_driver(ide_device *);
+
+struct PathListing *fat12_directory_listing(struct FSDriver *driver, struct Path *path);
+void fat12_free_listing(struct FSDriver *driver, struct PathListing *path);
+
+// File *fat12_read_file(FSDriver *driver, Path *path);
+// void fat12_write_file(FSDriver *driver, Path *path, File *file);
 
 typedef union __attribute__((packed))
 {
@@ -56,7 +63,7 @@ typedef struct __attribute__((packed))
     uint8_t _[499 - 51];
 } FAT_BPB;
 
-typedef union __attribute__((packed))
+typedef union __attribute__((packed)) FAT_BS
 {
     struct __attribute__((packed))
     {

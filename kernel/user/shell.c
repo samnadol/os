@@ -9,6 +9,7 @@
 #include "../hw/cpu/cpuid.h"
 #include "../hw/timer.h"
 #include "../drivers/disk/ide.h"
+#include "../drivers/disk/fs/fs.h"
 #include "../drivers/net/l0/ethernet.h"
 #include "../drivers/net/l1/arp.h"
 #include "../drivers/net/l1/ip.h"
@@ -310,7 +311,7 @@ void process_command(tty_interface *tty)
     }
     else if (!strcmp(args[0].val, "ide"))
     {
-        ide_test(tty, (uint16_t)timer_get_tick());
+        fs_init(ide_first_disk());
     }
     else if (!strcmp(args[0].val, "memleak"))
     {
@@ -350,6 +351,18 @@ void process_command(tty_interface *tty)
             printf("Unknown subcommand!\n");
         }
     }
+    else if (!strcmp(args[0].val, "ls"))
+    {
+        fs_ls(args->next->val);
+    }
+    else if (!strcmp(args[0].val, "cd"))
+    {
+        fs_cd(args->next->val);
+    }
+    else if (!strcmp(args[0].val, "cat"))
+    {
+        fs_cat(args->next->val);
+    }
     else
     {
         tprintf(tty, "UNKNOWN COMMAND %s\n", args[0].val);
@@ -366,7 +379,7 @@ void process_command(tty_interface *tty)
     }
     // mem_print();
 
-    tprintf(tty, "> ");
+    tprintf(tty, "%s > ", fs_get_wd());
     tty->keybuffer[0] = '\0';
 
     typing_enabled = true;
@@ -379,7 +392,7 @@ void process_command(tty_interface *tty)
 void shell_init()
 {
     // printf("0x%x\n", hash("time"));
-    printf("> ");
+    printf("%s > ", fs_get_wd());
     typing_enabled = true;
 }
 

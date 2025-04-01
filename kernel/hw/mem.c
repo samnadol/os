@@ -40,7 +40,7 @@ void mem_print_blocks(tty_interface *tty)
             // if (!current->printed)
             // {
             printf("(%d) %s %d: %d\n", current->alloc_epoch, current->caller_file, current->caller_line, current->size);
-            current->printed = true;
+            // current->printed = true;
             // }
         }
 
