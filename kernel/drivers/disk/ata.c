@@ -27,12 +27,20 @@ uint16_t *ata_28bit_pio_read_sector(ide_device d, uint32_t lba, uint32_t sectorc
     if (status & ATA_SR_ERR)
         return 0;
 
-    uint16_t *buf = (uint16_t *)malloc(sectorcount * d.sector_size * 2);
+    // printf("%d %d %d\n", sectorcount, d.sector_size * 2, sectorcount * d.sector_size * 2);
+    uint16_t *buf = (uint16_t *)calloc(sectorcount * d.sector_size * 2);
     if (status & ATA_SR_DRQ)
     {
-        for (int i = 0; i < d.sector_size; i++)
-            buf[i] = inw(d.channel.io_base + ATA_REG_DATA);
-        status = ide_read(d.channel, ATA_REG_STATUS);
+        for (int s = 0; s < sectorcount; s++)
+        {
+            for (int i = 0; i < d.sector_size; i++)
+            {
+                uint16_t data = inw(d.channel.io_base + ATA_REG_DATA);
+                buf[(s * d.sector_size) + i] = data;
+            }
+            status = ide_read(d.channel, ATA_REG_STATUS);
+            timer_wait(1);
+        }
     }
 
     time = 0;

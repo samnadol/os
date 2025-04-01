@@ -83,7 +83,7 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 	// 	printf("mmapseg %x %x %x\n", (uint32_t)(mmmt->addr), (uint32_t)(mmmt->addr) + (uint32_t)(mmmt->len), mmmt->type);
 	// }
 
-	printf("            _____      \n\
+	printf("\n            _____      \n\
            |____ |     \n\
   ___  ___     / /     \n\
  / _ \\/ __|    \\ \\  \n\
@@ -97,6 +97,7 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 
 	dprintf(0, "[MEM] using mem region %p - %p\n", biggest_mem_segment.start, biggest_mem_segment.start + biggest_mem_segment.len);
 
+	// required to boot
 	get_cpu_info();
 	gdt_init();
 	idt_init();
@@ -105,16 +106,19 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 	pic_remap(32, 40);
 	io_wait();
 
+	// required for user interaction
 	interrupts_enable();
 	keyboard_init();
 	mouse_init();
 	timer_init();
 
+	// required for network
 	udp_init();
 	arp_init();
 	tcp_init();
 	dns_init();
 
+	// required for communication (including network)
 	pci_init();
 	if (ethernet_first_netdev())
 	{

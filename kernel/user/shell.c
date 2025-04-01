@@ -34,15 +34,15 @@ typedef struct arg
  * HELPER FUNCTIONS
  */
 
-const unsigned long hash(const char *str)
-{
-    unsigned long hash = 5381;
-    int c;
+// const unsigned long hash(const char *str)
+// {
+//     unsigned long hash = 5381;
+//     int c;
 
-    while ((c = *str++))
-        hash = ((hash << 5) + hash) + c;
-    return hash;
-}
+//     while ((c = *str++))
+//         hash = ((hash << 5) + hash) + c;
+//     return hash;
+// }
 
 /*
  * NETWORK LISTENERS
@@ -124,69 +124,97 @@ void process_command(tty_interface *tty)
                 new->next = 0;
 
                 if (!args)
+                {
                     args = new;
+                }
                 else
                 {
                     arg *current = args;
                     while (current->next)
+                    {
                         current = current->next;
+                    }
+
                     current->next = new;
                 }
             }
 
             if (tty->keybuffer[i] == '\0')
+            {
                 break;
+            }
         }
     }
     mfree(space_locations);
 
-    switch (hash(args[0].val))
+    if (!strcmp(args[0].val, "cpu"))
     {
-    case COMMAND_CPU:
         tprintf(tty, "%s %s\n", cpuinfo.vendor, cpuinfo.model);
-        break;
-    case COMMAND_MEM:
+    }
+    else if (!strcmp(args[0].val, "mem"))
+    {
         mem_print(tty);
-        break;
-    case COMMAND_PCI:
+    }
+    else if (!strcmp(args[0].val, "pci"))
+    {
         pci_print(tty);
-        break;
-    case COMMAND_IRQ:
+    }
+    else if (!strcmp(args[0].val, "irq"))
+    {
         irq_print(tty);
-        break;
-    case COMMAND_ARP:
+    }
+    else if (!strcmp(args[0].val, "arp"))
+    {
         arp_print(tty);
-        break;
-    case COMMAND_ICMP:
+    }
+    else if (!strcmp(args[0].val, "icmp"))
+    {
         for (int i = 0; i < 4; i++)
         {
             if (i > 0)
+            {
                 timer_wait(1000);
+            }
+
             icmp_send_packet(ethernet_first_netdev(), ip_to_uint(1, 1, 1, 1), i);
         }
-        break;
-    case COMMAND_IP:
+    }
+    else if (!strcmp(args[0].val, "ip"))
+    {
         network_device *netdev = ethernet_first_netdev();
         tprintf(tty, "IP: %i\nNetmask: %i\nGateway: %i\nDNS: %i\nDHCP: %i\n", netdev->ip_c.ip, netdev->ip_c.netmask, netdev->ip_c.gateway, netdev->ip_c.dns, netdev->ip_c.dhcp);
-        break;
-    case COMMAND_DNS:
+    }
+    else if (!strcmp(args[0].val, "dns"))
+    {
         if (num_args(args) == 1)
+        {
             dns_print(tty);
+        }
         else if (num_args(args) == 2)
         {
             if (strcmp("clear", args->next->val) == 0)
+            {
                 dns_clear_cache();
+            }
             else
+            {
                 tprintf(tty, "Unknown subcommand!\n");
+            }
         }
         else
+        {
             tprintf(tty, "Bad number of arguments!\n");
-        break;
-    case COMMAND_ECHO:
+        }
+    }
+    else if (!strcmp(args[0].val, "echo"))
+    {
         echo_semaphore = false;
         char *data = (char *)calloc(10);
         for (int i = 0; i < 10; i++)
+        {
             data[i] = i;
+        }
+
         udp_send_packet(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.ip, 10000, ip_to_uint(52, 43, 121, 77), 10001, data, 10);
         mfree(data);
         udp_install_listener(10000, echo_listener);
@@ -197,60 +225,73 @@ void process_command(tty_interface *tty)
             timer_wait(10);
             timer += 10;
         }
-        break;
-    case COMMAND_DNSREQ:
+    }
+    else if (!strcmp(args[0].val, "dnsreq"))
+    {
         if (num_args(args) != 2)
         {
             tprintf(tty, "Invalid number of arguments\n");
-            break;
-        }
-
-        dns_answer *res = dns_get_ip(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.dns, args->next->val, 10000);
-        if (res)
-        {
-            if (res->name_exists)
-                tprintf(tty, "%d.%d.%d.%d\n", res->data[0], res->data[1], res->data[2], res->data[3]);
-            else
-                tprintf(tty, "name does not exist\n");
         }
         else
-            tprintf(tty, "no response\n");
-        break;
-    case COMMAND_HTTP:
+        {
+            dns_answer *res = dns_get_ip(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.dns, args->next->val, 10000);
+            if (res)
+            {
+                if (res->name_exists)
+                {
+                    tprintf(tty, "%d.%d.%d.%d\n", res->data[0], res->data[1], res->data[2], res->data[3]);
+                }
+                else
+                {
+                    tprintf(tty, "name does not exist\n");
+                }
+            }
+            else
+            {
+                tprintf(tty, "no response\n");
+            }
+        }
+    }
+    else if (!strcmp(args[0].val, "http"))
+    {
         if (num_args(args) != 2)
         {
             tprintf(tty, "Invalid number of arguments\n");
-            break;
-        }
-
-        size_t firstslash = strfindchar(args->next->val, '/');
-        char *domain = strcut(args->next->val, firstslash);
-        char *path = args->next->val + firstslash - 1;
-        if (strlen(args->next->val) == firstslash - 1)
-            path = "/";
-
-        uint32_t ip = 0;
-        dns_answer *ans = dns_get_ip(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.dns, domain, 5000);
-        if (ans)
-        {
-            if (ans->name_exists)
-            {
-                ip = (ans->data[0] << 24) | (ans->data[1] << 16) | (ans->data[2] << 8) | (ans->data[3] << 0);
-                http_send_request(ethernet_first_netdev(), ip, 80, domain, path, &mock_http_recieve); // blocks until data is recieved or times out
-            }
-            else
-            {
-                tprintf(tty, "[HTTP] domain does not exist\n");
-            }
         }
         else
         {
-            tprintf(tty, "[HTTP] dns request timed out\n");
-        }
+            size_t firstslash = strfindchar(args->next->val, '/');
+            char *domain = strcut(args->next->val, firstslash);
+            char *path = args->next->val + firstslash - 1;
+            if (strlen(args->next->val) == firstslash - 1)
+            {
+                path = "/";
+            }
 
-        mfree(domain);
-        break;
-    case COMMAND_GUI:
+            uint32_t ip = 0;
+            dns_answer *ans = dns_get_ip(ethernet_first_netdev(), ethernet_first_netdev()->ip_c.dns, domain, 5000);
+            if (ans)
+            {
+                if (ans->name_exists)
+                {
+                    ip = (ans->data[0] << 24) | (ans->data[1] << 16) | (ans->data[2] << 8) | (ans->data[3] << 0);
+                    http_send_request(ethernet_first_netdev(), ip, 80, domain, path, &mock_http_recieve); // blocks until data is recieved or times out
+                }
+                else
+                {
+                    tprintf(tty, "[HTTP] domain does not exist\n");
+                }
+            }
+            else
+            {
+                tprintf(tty, "[HTTP] dns request timed out\n");
+            }
+
+            mfree(domain);
+        }
+    }
+    else if (!strcmp(args[0].val, "gui"))
+    {
         if (tty->type == TTYType_VGA)
         {
             vga_switch_mode(VGA_GUI);
@@ -260,39 +301,58 @@ void process_command(tty_interface *tty)
         {
             tprintf(tty, "This terminal is not on a VGA display, cannot switch to GUI.\n");
         }
-        break;
-    case COMMAND_DHCP:
-        network_device *dev = ethernet_first_netdev();
-        if (strcmp(args->next->val, "release") == 0)
-            if (dev->ip_c.ip)
-                dhcp_configuration_release(dev);
-            else
-                tprintf(tty, "Don't have an IP to release!\n");
-        else if (strcmp(args->next->val, "request") == 0)
-            if (!dev->ip_c.ip)
-                dhcp_configuration_request(dev, 3000);
-            else
-                tprintf(tty, "Already have an IP!\n");
-        else
-            printf("Unknown subcommand!\n");
-        break;
-    case COMMAND_HELP:
-        tprintf(tty, "COMMAND_CPU = 0xB8866ED,\nCOMMAND_MEM = 0xB889004,\nCOMMAND_PCI = 0xB889C81,\nCOMMAND_IRQ = 0xB8880B1,\nCOMMAND_ARP = 0xB885EA8,\nCOMMAND_ICMP = 0x7C9856EE,\nCOMMAND_IP = 0x59783E,\nCOMMAND_DNS = 0xB886AEA,\nCOMMAND_ECHO = 0x7C9624C4,\nCOMMAND_DNSREQ = 0xF92A6D12,\nCOMMAND_HTTP = 0x7C9813C5,\nCOMMAND_GUI = 0xB88788A,\nCOMMAND_DHCP = 0x7C9E690A,\nCOMMAND_HELP = 0x7C97D2EE");
-        tprintf(tty, "\n");
-        break;
-    case COMMAND_MEMLEAK:
-        mem_print_blocks(tty);
-        break;
-    case COMMAND_IDE:
-        ide_test(tty, (uint16_t)timer_get_tick());
-        break;
-    case COMMAND_TIME:
+    }
+    else if (!strcmp(args[0].val, "time"))
+    {
         char *buf = (char *)calloc(30);
         tprintf(tty, "%s\n", convert_time(time_unix_epoch(), buf));
         mfree(buf);
-        break;
-    default:
-        tprintf(tty, "UNKNOWN COMMAND %s (hash 0x%x)\n", args[0].val, hash(args[0].val));
+    }
+    else if (!strcmp(args[0].val, "ide"))
+    {
+        ide_test(tty, (uint16_t)timer_get_tick());
+    }
+    else if (!strcmp(args[0].val, "memleak"))
+    {
+        mem_print_blocks(tty);
+    }
+    else if (!strcmp(args[0].val, "help"))
+    {
+        tprintf(tty, "cpu\nmem\npci\nirq\narp\nicmp\nip\ndns\necho\ndnsreq\nhttp\ngui\ndhcp\nhelp\n");
+    }
+    else if (!strcmp(args[0].val, "dhcp"))
+    {
+        network_device *dev = ethernet_first_netdev();
+        if (strcmp(args->next->val, "release") == 0)
+        {
+            if (dev->ip_c.ip)
+            {
+                dhcp_configuration_release(dev);
+            }
+            else
+            {
+                tprintf(tty, "Don't have an IP to release!\n");
+            }
+        }
+        else if (strcmp(args->next->val, "request") == 0)
+        {
+            if (!dev->ip_c.ip)
+            {
+                dhcp_configuration_request(dev, 3000);
+            }
+            else
+            {
+                tprintf(tty, "Already have an IP!\n");
+            }
+        }
+        else
+        {
+            printf("Unknown subcommand!\n");
+        }
+    }
+    else
+    {
+        tprintf(tty, "UNKNOWN COMMAND %s\n", args[0].val);
     }
 
     arg *current = args;

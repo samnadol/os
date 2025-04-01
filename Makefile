@@ -13,12 +13,13 @@ K_H := $(shell find kernel/ -type f -name '*.h')
 run_kernel_i386: build/os.bin
 	qemu-system-i386 -m 8M \
 	-kernel build/os.bin \
-	-serial stdio \
 	-object filter-dump,id=f1,netdev=eth,file=qemu-pktlog.pcap \
 	-netdev user,id=eth -device e1000,netdev=eth \
-	-hda os.img
-#	-nographic \
-#	-chardev stdio,id=serial1 -device pci-serial,chardev=serial1 \
+	-hda os.img \
+	-nographic \
+	-display none
+# -chardev stdio,id=serial1 -device pci-serial,chardev=serial1
+# -serial stdio
 
 run_cdrom_i386: build/os.iso
 	qemu-system-i386 -m 8M \
@@ -40,7 +41,6 @@ run_cdrom_x86_64: build/os.iso
 	qemu-system-x86_64 -s -m 32M \
 	-cdrom build/os.iso \
 	-netdev user,id=eth -device e1000,netdev=eth 
-
 
 clean:
 	rm -rf build/
@@ -73,3 +73,16 @@ build/%.o: %.c ${HEADERS}
 
 test: build_test/test.o ${K_OBJ_BT}
 	$(CC) test.o $(K_OBJ_BT)
+
+osimg:
+	rm os.img
+	dd if=/dev/zero of=os.img count=1 bs=1M
+	mkfs.vfat -F12 -S512 -s1 os.img
+
+	echo "Hello World!" > hello.txt
+	mcopy -i os.img hello.txt ::/hello.txt
+	rm hello.txt
+
+	echo "this is a very long file content with many characters and numbers 12434382432 and special symbols @(*)@!&#&#*(@)" > veryextremelylongfilename.txt
+	mcopy -i os.img veryextremelylongfilename.txt ::/veryextremelylongfilename.txt
+	rm veryextremelylongfilename.txt

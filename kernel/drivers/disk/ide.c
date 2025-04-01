@@ -6,6 +6,7 @@
 #include "../../hw/port.h"
 #include "../../hw/timer.h"
 #include "../../hw/mem.h"
+#include "fs/fat12.h"
 
 ide_channel ide_channels[2];
 ide_device *ide_devices[4];
@@ -153,10 +154,10 @@ ide_device *ide_device_detect(ide_channel c, uint8_t drive_bit)
     return d;
 }
 
-// void disk_interrupt_handler(registers_t *r)
-// {
-//     printf("disk interrupt\n");
-// }
+void disk_interrupt_handler(registers_t *r)
+{
+    // printf("disk interrupt\n");
+}
 
 void ide_device_init(pci_device *pci)
 {
@@ -198,10 +199,10 @@ void ide_device_init(pci_device *pci)
     for (size_t i = 0; i < 4; i++)
         if (ide_devices[i]->reserved == 1)
         {
-            printf("[IDE] %s, %d %f sectors - %s\n",
+            dprintf(0, "[IDE] %s, %d %f sectors - %s\n",
                    (const char *[]){"ATA", "ATAPI"}[ide_devices[i]->type], /* Type */
                    ide_devices[i]->size,                                   /* size in sectors */
-                   ide_devices[i]->sector_size * 2,                        /* size of each sector*/
+                   ide_devices[i]->sector_size,                            /* size of each sector*/
                    ide_devices[i]->model);                                 /* Model */
 
             // if (ide_devices[i]->type == 0)
@@ -216,7 +217,7 @@ void ide_device_init(pci_device *pci)
             // }
         }
 
-    // irq_register(IRQ14, disk_interrupt_handler);
+    irq_register(IRQ14, disk_interrupt_handler);
 }
 
 void ide_test(tty_interface *tty, uint16_t word)
@@ -227,8 +228,20 @@ void ide_test(tty_interface *tty, uint16_t word)
         {
             if (ide_devices[i]->type == 0)
             {
-                ata_write_word(*(ide_devices[0]), 0, 0, word);
-                tprintf(tty, "%d\n", ata_read_word(*(ide_devices[i]), 0, 0));
+                fat_test(ide_devices[i]);
+
+                // int index = 0;
+                // ata_write_word(*(ide_devices[0]), 0, index++, word);
+
+                // int text_index = 0;
+                // const char *text = "Hello from OS3! This was written using the IDE and ATA drivers.\0";
+                // while (text[text_index])
+                // {
+                //     ata_write_word(*(ide_devices[0]), 0, index++, text[text_index + 1] << 8 | text[text_index]);
+                //     text_index += 2;
+                // }
+
+                // tprintf(tty, "%d\n", ata_read_word(*(ide_devices[i]), 0, 0));
             }
         }
     }
