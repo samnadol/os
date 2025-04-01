@@ -2,49 +2,38 @@
 
 #include "../ata.h"
 
-typedef enum PathType
-{
-    FilePath,
-    DirectoryPath,
-} PathType;
 
-typedef struct File
+typedef enum EntryType
 {
-    uint8_t *data;
-
-    struct Path *path;
-    struct File *next; // optional, for use with FileListing
-} File;
-
-typedef struct PathListing
-{
-    struct Path *first;
-} PathListing;
+    FileEntry,
+    DirectoryEntry,
+} EntryType;
 
 typedef struct Path
 {
     char *components[256];
     uint8_t num_components;
-
-    uint16_t fs_specific_header[256];
-    PathType type;
-
-    struct Path *next; // used in directorylisting
 } Path;
+
+typedef struct Entry
+{
+    uint8_t *data;
+
+    EntryType type;
+    Path *path;
+} Entry;
 
 typedef struct FSDriver
 {
-    File *(*readFile)(struct FSDriver *, Path *);
-    void (*writeFile)(struct FSDriver *, Path *, File *);
+    Entry *(*readFile)(struct FSDriver *, Path *);
+    void (*writeFile)(struct FSDriver *, Path *, Entry *);
 
-    PathListing *(*directoryListing)(struct FSDriver *, Path *);
-    void (*freePathListing)(struct FSDriver *, PathListing *);
+    Entry *(*directoryListing)(struct FSDriver *, Path *);
 
-    int (*fileExists)(struct FSDriver *, Path *);
-    int (*directoryExists)(struct FSDriver *, Path *);
+    int (*entryExists)(struct FSDriver *, Path *, EntryType);
 
     ide_device *ide;
-    union FAT_BS *fat_bs;
+    union fat_bootsector *fat_bs;
     uint16_t *fat_table;
 } FSDriver;
 
@@ -59,5 +48,7 @@ void fs_init(ide_device *ide);
 void fs_ls(char *dir);
 void fs_cd(char *dir);
 void fs_cat(char *dir);
+void fs_mkdir(char *dir);
+void fs_write(char *dir);
 
 char *fs_get_wd();

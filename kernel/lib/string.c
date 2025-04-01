@@ -98,7 +98,15 @@ void strlower(char *s)
 {
     for (int i = 0; s[i]; i++)
     {
-        s[i] = s[i] >= 'A' && s[i] <= 'Z' ? s[i] | 0x60 : s[i];
+        s[i] = (s[i] >= 'A' && s[i] <= 'Z' )? s[i] | 0x60 : s[i];
+    }
+}
+
+void strupper(char *s)
+{
+    for (int i = 0; s[i]; i++)
+    {
+        s[i] = (s[i] >= 'a' && s[i] <= 'z') ? s[i] - ('a' - 'A') : s[i];
     }
 }
 

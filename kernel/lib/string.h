@@ -22,6 +22,8 @@ char *strpadstart(char *buf, uint16_t desired_length, char padding);
 
 // modifies string s to be all lowercase
 void strlower(char *s);
+// modifies string s to be all uppercase
+void strupper(char *s);
 // modifies string s to be in reverse order
 void strreverse(char *str, int length);
 // modifies string s by adding char n to end. string s MUST be long enough to hold the extra char

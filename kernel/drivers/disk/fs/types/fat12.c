@@ -5,9 +5,9 @@
 #include "../../../../hw/mem.h"
 #include "../../../../lib/string.h"
 
-FAT_BS *fat_read_bs(ide_device *ide)
+fat_bootsector *fat_read_bs(ide_device *ide)
 {
-    FAT_BS *bs = (FAT_BS *)calloc(sizeof(FAT_BS));
+    fat_bootsector *bs = (fat_bootsector *)calloc(sizeof(fat_bootsector));
 
     uint16_t *bootsector = ata_28bit_pio_read_sector(*ide, 0, 1);
     for (int i = 0; i < ide->sector_size; i++)
@@ -17,7 +17,7 @@ FAT_BS *fat_read_bs(ide_device *ide)
     return bs;
 }
 
-uint16_t *fat12_read_table(ide_device *ide, FAT_BS *bs)
+uint16_t *fat12_read_table(ide_device *ide, fat_bootsector *bs)
 {
     uint16_t *fat = (uint16_t *)calloc(sizeof(uint16_t) * bs->ebpb.logical_sectors_per_fat * (3 * bs->ebpb.bytes_per_logical_sector) / 2);
 
@@ -38,7 +38,7 @@ uint16_t *fat12_read_table(ide_device *ide, FAT_BS *bs)
     return fat;
 }
 
-uint16_t *fat12_read_root(ide_device *ide, FAT_BS *bs)
+uint16_t *fat12_read_root(ide_device *ide, fat_bootsector *bs)
 {
     uint16_t root_directory_location = bs->ebpb.reserved_logical_sectors + (bs->ebpb.logical_sectors_per_fat * bs->ebpb.num_fat_tables);
     uint16_t root_directory_sectors = (bs->ebpb.max_root_directory_entries * 32) / bs->ebpb.bytes_per_logical_sector;
@@ -47,13 +47,12 @@ uint16_t *fat12_read_root(ide_device *ide, FAT_BS *bs)
     return read;
 }
 
-uint16_t *fat12_read_data(ide_device *ide, FAT_BS *bs, uint16_t *fat, uint16_t offset_from_root)
+uint16_t *fat12_read_data(ide_device *ide, fat_bootsector *bs, uint16_t *fat, uint16_t offset_from_root)
 {
     uint16_t root_directory_location = bs->ebpb.reserved_logical_sectors + (bs->ebpb.logical_sectors_per_fat * bs->ebpb.num_fat_tables);
     uint16_t root_directory_sectors = (bs->ebpb.max_root_directory_entries * 32) / bs->ebpb.bytes_per_logical_sector;
     uint16_t first_data_sector = root_directory_location + root_directory_sectors;
 
-    // find number of sectors that contain this data in total
     uint8_t number_of_sectors = 0;
     uint16_t current_sector = offset_from_root;
     do
@@ -63,19 +62,13 @@ uint16_t *fat12_read_data(ide_device *ide, FAT_BS *bs, uint16_t *fat, uint16_t o
     } while (current_sector != 0xFFF);
     current_sector = offset_from_root;
 
-    // printf("reading %d sectors\n", number_of_sectors);
-
-    // allocate memory to store data to be read
     uint16_t *data = (uint16_t *)calloc(bs->ebpb.bytes_per_logical_sector * number_of_sectors * 2);
-
-    // read data from sectors, following FAT to find order
     uint8_t sectors_read = 0;
     do
     {
         uint16_t *read_data = ata_28bit_pio_read_sector(*ide, current_sector - 2 + first_data_sector, 1);
         memcpy(data + (sectors_read * bs->ebpb.bytes_per_logical_sector / 2), read_data, bs->ebpb.bytes_per_logical_sector);
         mfree(read_data);
-
         current_sector = fat[current_sector];
         sectors_read++;
     } while (current_sector != 0xFFF);
@@ -83,11 +76,11 @@ uint16_t *fat12_read_data(ide_device *ide, FAT_BS *bs, uint16_t *fat, uint16_t o
     return data;
 }
 
-char *fat12_assemble_filename(FAT_DIRECTORY_ENTRY directory)
+char *fat12_assemble_filename(fat_directory_entry_standard entry)
 {
     uint16_t name_length = 0;
-    char *name = directory.name;
-    char *ext = directory.ext;
+    char *name = entry.name;
+    char *ext = entry.ext;
     while (*(name++) != 0x20)
         name_length++;
     while (*(ext++) != 0x20)
@@ -95,17 +88,17 @@ char *fat12_assemble_filename(FAT_DIRECTORY_ENTRY directory)
     char *assembed = (char *)calloc(name_length + 2);
 
     uint16_t i = 0;
-    name = directory.name;
+    name = entry.name;
     while (*name != 0x20 && i < 8)
     {
         assembed[i++] = *name;
         name++;
     }
 
-    if (!(directory.attributes & 0x10))
+    if (!(entry.attributes & 0x10))
     {
         assembed[i++] = '.';
-        ext = directory.ext;
+        ext = entry.ext;
         while (*ext != 0x20)
         {
             assembed[i++] = *ext;
@@ -116,104 +109,56 @@ char *fat12_assemble_filename(FAT_DIRECTORY_ENTRY directory)
     return assembed;
 }
 
-// void fat12_read_directory(ide_device *ide, FAT_BS *bs, uint16_t *fat, uint16_t *data, int level)
-// {
-//     for (int f = 0; f < bs->ebpb.max_root_directory_entries; f++)
-//     {
-//         uint8_t start = ((uint8_t *)data)[(f * 16 * 2) + 0];
-//         if (start == 0)
-//             break;
-//         else if (start == 0xE5)
-//             continue;
 
-//         uint8_t attribute = ((uint8_t *)data)[(f * 16 * 2) + 11];
-//         if (attribute == 0x0F) // longname entry
-//         {
-//             // FAT_LONGNAME_ENTRY longname;
-//             // memcpy(longname.raw, data + (f * 16), bs->ebpb.bytes_per_logical_sector / 2);
+fat_directory_listing *fat12_get_directory_contents(FSDriver *driver, Entry *entry)
+{
+    if (entry->type == DirectoryEntry)
+    {
+        Path *blank = (Path *)calloc(sizeof(Path));
+        uint16_t *root_data = fat12_read_root(driver->ide, driver->fat_bs);
+        fat_directory_listing *root = fat12_data_to_directory_contents(driver, blank, root_data);
+        mfree(root_data);
+        if (entry->path->num_components == 0)
+            return root;
+        mfree(blank);
 
-//             // int i = 0;
-//             // char name[14];
-//             // for (; i < 5; i++)
-//             //     name[i] = longname.first5[i];
-//             // for (; i < 11; i++)
-//             //     name[i] = longname.next6[i - 5];
-//             // for (; i < 13; i++)
-//             //     name[i] = longname.final2[i - 11];
-//             // name[13] = 0;
+        uint8_t depth = 0;
+        for (int i = 0; i < 256; i++)
+        {
+            if (depth == root->contents[i].)
+            {
+                // printf("FOUND\n");
+                return root;
+            }
+            // printf("%d %s %s\n", depth, path->components[depth], current->components[depth]);
 
-//             // printf("longname %s %x %s\n", (longname.order & 0xF0) >> 4 ? "FINAL" : "", longname.order & 0x0F, name);
-//         }
-//         else if (attribute & 0x10) // directory
-//         {
-//             FAT_DIRECTORY_ENTRY directory;
-//             memcpy(directory.raw, data + (f * 16), bs->ebpb.bytes_per_logical_sector / 2);
+            if (strcmp(path->components[depth], current->components[depth]) == 0 && current->type == DirectoryPath)
+            {
+                uint16_t *data = fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, ((fat_directory_entry_standard *)current->fs_specific_header)->first_cluster_number_low);
+                mfree(root);
+                root = fat12_generate_directory_listing(driver, current, data);
+                mfree(data);
 
-//             char *name = fat12_assemble_filename(directory);
-//             printf("\ndirectory %s\n", name);
+                current = root->first;
+                depth += 1;
+            }
 
-//             if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0)
-//             {
-//                 uint16_t *read_dir = fat12_read_data(ide, bs, fat, directory.first_cluster_number_low);
-//                 fat12_read_directory(ide, bs, fat, read_dir, level + 1);
-//                 mfree(read_dir);
-//             }
+            current = current->next;
+        } 
 
-//             mfree(name);
-//             // printf("\n");
-//         }
-//         else // file
-//         {
-//             FAT_DIRECTORY_ENTRY file;
-//             memcpy(file.raw, data + (f * 16), bs->ebpb.bytes_per_logical_sector / 2);
+        printf("[FS] Could not find path!\n");
+        return 0;
+    }
+}
 
-//             if (file.raw[0] == 0)
-//                 continue;
-
-//             char *name = fat12_assemble_filename(file);
-//             printf("file %s\n", name);
-//             // printf("created %d/%d/%d %d:%d:%d\n", file.creation_date.month, file.creation_date.day, file.creation_date.year + 1980, file.creation_time.hour, file.creation_time.minute, file.creation_time.second * 2);
-//             // printf("modified %d/%d/%d %d:%d:%d\n", file.last_modify_date.month, file.last_modify_date.day, file.last_modify_date.year + 1980, file.last_modify_time.hour, file.last_modify_time.minute, file.last_modify_time.second * 2);
-//             // printf("accessed %d/%d/%d\n", file.last_access_date.month, file.last_access_date.day, file.last_access_date.year + 1980);
-//             // printf("size %f\n", file.file_size_bytes);
-
-//             uint16_t *read_file = fat12_read_data(ide, bs, fat, file.first_cluster_number_low);
-//             // printf("data %s\n", read_file);
-//             mfree(read_file);
-
-//             mfree(name);
-//             // printf("\n");
-//         }
-//     }
-// }
-
-// void fat_test(ide_device *ide)
-// {
-//     FAT_BS *bs = fat_read_bs(ide);
-//     if (bs->signature != 0xAA55)
-//     {
-//         printf("FAT signature does not match (%x)!\n", bs->signature);
-//         return;
-//     }
-
-//     printf("got here\n");
-
-//     uint16_t *fat = fat12_read_table(ide, bs);
-//     uint16_t *root_directory_data = fat12_read_root(ide, bs);
-
-//     fat12_read_directory(ide, bs, fat, root_directory_data, 0);
-//     mfree(root_directory_data);
-// }
-
-Path *fat12_find_listing(FSDriver *driver, Path *path)
+fat_directory_listing *fat12_find_directory_of_file(FSDriver *driver, Entry *entry)
 {
     Path *dir = (Path *)calloc(sizeof(Path));
-    memcpy(dir, path, sizeof(Path));
+    memcpy(dir, entry->path, sizeof(Path));
     dir->num_components -= 1;
-    dir->type = DirectoryPath;
 
     // printf("path created\n");
-    PathListing *containingDir = fat12_directory_listing(driver, dir);
+    fat_directory_listing *containingDir = fat12_directory_listing(driver, dir);
     // printf("directory listing obtained\n");
     Path *current = containingDir->first;
     // printf("beginning loop\n");
@@ -240,39 +185,31 @@ Path *fat12_find_listing(FSDriver *driver, Path *path)
     return 0;
 }
 
-int fat12_file_exists(FSDriver *driver, Path *path)
+int fat12_entry_exists(char *desired, fat_directory_listing *listing, EntryType type)
 {
-    Path *list = fat12_find_listing(driver, path);
-    if (list == 0)
-        return 0;
-
-    if (list->type != FilePath)
-        return 0;
-
-    return 1;
+    for (int i = 0; i < listing->num_contents; i++)
+    {
+        char *name = fat12_assemble_filename(listing->contents[i]);
+        if (strcmp(desired, name) == 0)
+        {
+            if (type == DirectoryEntry && listing->contents[i].attributes & 0x10)
+                return 1;
+            else if (type == FileEntry)
+                return 1;
+        }
+    }
+    return 0;
 }
 
-int fat12_directory_exists(FSDriver *driver, Path *path)
+Entry *fat12_read_file(FSDriver *driver, Path *path)
 {
     Path *list = fat12_find_listing(driver, path);
     if (list == 0)
         return 0;
 
-    if (list->type != DirectoryPath)
-        return 0;
-
-    return 1;
-}
-
-File *fat12_read_file(FSDriver *driver, Path *path)
-{
-    Path *list = fat12_find_listing(driver, path);
-    if (list == 0)
-        return 0;
-
-    File *file = (File *)calloc(sizeof(File));
+    Entry *file = (Entry *)calloc(sizeof(Entry));
     file->path = path;
-    file->data = (uint8_t *)fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, ((FAT_DIRECTORY_ENTRY *) list->fs_specific_header)->first_cluster_number_low);
+    file->data = (uint8_t *)fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, ((fat_directory_entry_standard *) list->components)->first_cluster_number_low);
     mfree(list);
 
     return file;
@@ -280,15 +217,20 @@ File *fat12_read_file(FSDriver *driver, Path *path)
 
 void fat12_write_file(FSDriver *driver, Path *path, File *file)
 {
+    Path *list = fat12_find_listing(driver, path);
+    uint16_t *directory = fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, ((fat_directory_entry_standard *)(list->fs_specific_header))->first_cluster_number_low);
+   
     return;
 }
 
-PathListing *fat12_generate_directory_listing(FSDriver *driver, Path *path, uint16_t *data)
+fat_directory_listing *fat12_directory_content(FSDriver *driver, Path *path, uint16_t *data)
 {
-    PathListing *list = (PathListing *)calloc(sizeof(PathListing));
+    fat_directory_listing *listing = (fat_directory_listing *)calloc(sizeof(fat_directory_listing));
+    memcpy(listing->raw, data, 16384);
+    return listing;
 
-    // driver->fat_bs->ebpb.max_root_directory_entries
-    for (int f = 0; f < 128; f++)
+    PathListing *list = (PathListing *)calloc(sizeof(PathListing));
+    for (int f = 0; f < driver->fat_bs->ebpb.max_root_directory_entries; f++)
     {
         // printf("reading line\n");
         uint8_t start = ((uint8_t *)data)[(f * 16 * 2) + 0];
@@ -303,8 +245,8 @@ PathListing *fat12_generate_directory_listing(FSDriver *driver, Path *path, uint
             Path *new = (Path *)calloc(sizeof(Path));
             if (attribute & 0x10) // directory
             {
-                FAT_DIRECTORY_ENTRY directory;
-                memcpy(directory.raw, data + (f * 16), driver->fat_bs->ebpb.bytes_per_logical_sector / 2);
+                fat_directory_entry_standard directory;
+                memcpy(directory.raw, data + (f * 16), sizeof(fat_directory_entry_standard));
     
                 memcpy(new->components, path->components, 256 * sizeof(char*));
                 new->num_components = path->num_components;
@@ -315,8 +257,8 @@ PathListing *fat12_generate_directory_listing(FSDriver *driver, Path *path, uint
             }
             else // file
             {
-                FAT_DIRECTORY_ENTRY file;
-                memcpy(file.raw, data + (f * 16), driver->fat_bs->ebpb.bytes_per_logical_sector / 2);
+                fat_directory_entry_standard file;
+                memcpy(file.raw, data + (f * 16), sizeof(fat_directory_entry_standard));
     
                 memcpy(new->components, path->components, 256 * sizeof(char*));
                 new->num_components = path->num_components;
@@ -338,55 +280,6 @@ PathListing *fat12_generate_directory_listing(FSDriver *driver, Path *path, uint
         }
     }
     return list;
-}
-
-PathListing *fat12_directory_listing(FSDriver *driver, Path *path)
-{
-    if (path->type == FilePath)
-    {
-        printf("[FS] Cannot ls a file!\n");
-        return 0;
-    }
-
-    Path *blank = (Path *)calloc(sizeof(Path));
-    blank->type = DirectoryPath;
-    // printf("reading root\n");
-    uint16_t *root_data = fat12_read_root(driver->ide, driver->fat_bs);
-    // printf("generating root listing\n");
-    PathListing *root = fat12_generate_directory_listing(driver, blank, root_data);
-    mfree(root_data);
-    if (path->num_components == 0)
-        return root;
-    mfree(blank);
-
-    // printf("beginning search\n");
-    uint8_t depth = 0;
-    Path *current = root->first;
-    while (current)
-    {
-        if (depth == path->num_components)
-        {
-            // printf("FOUND\n");
-            return root;
-        }
-        // printf("%d %s %s\n", depth, path->components[depth], current->components[depth]);
-
-        if (strcmp(path->components[depth], current->components[depth]) == 0 && current->type == DirectoryPath)
-        {
-            uint16_t *data = fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, ((FAT_DIRECTORY_ENTRY *)current->fs_specific_header)->first_cluster_number_low);
-            mfree(root);
-            root = fat12_generate_directory_listing(driver, current, data);
-            mfree(data);
-
-            current = root->first;
-            depth += 1;
-        }
-
-        current = current->next;
-    } 
-
-    printf("[FS] Could not find path!\n");
-    return 0;
 }
 
 void fat12_free_path(Path* path)
@@ -422,8 +315,7 @@ FSDriver *fat12_init_driver(ide_device *ide)
     driver->directoryListing = fat12_directory_listing;
     driver->freePathListing = fat12_free_listing;
 
-    driver->fileExists = fat12_file_exists;
-    driver->directoryExists = fat12_directory_exists;
+    driver->entryExists = fat12_exists;
 
     driver->fat_bs = fat_read_bs(driver->ide);
     driver->fat_table = fat12_read_table(driver->ide, driver->fat_bs);

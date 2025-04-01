@@ -75,7 +75,7 @@ test: build_test/test.o ${K_OBJ_BT}
 	$(CC) test.o $(K_OBJ_BT)
 
 osimg:
-	rm os.img
+	rm -f os.img
 	dd if=/dev/zero of=os.img count=1 bs=1M
 	mkfs.vfat -F12 -S512 -s1 os.img
 

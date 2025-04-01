@@ -363,6 +363,14 @@ void process_command(tty_interface *tty)
     {
         fs_cat(args->next->val);
     }
+    else if (!strcmp(args[0].val, "mkdir"))
+    {
+        fs_mkdir(args->next->val);
+    }
+    else if (!strcmp(args[0].val, "write"))
+    {
+        fs_write(args->next->val);
+    }
     else
     {
         tprintf(tty, "UNKNOWN COMMAND %s\n", args[0].val);
