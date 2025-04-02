@@ -5,36 +5,10 @@
 #include "types/fat12.h"
 
 FSState *state;
-char fs_buf[256];
 
 char *fs_get_wd()
 {
-    int i;
-    for (i = 0; i < 256; i++)
-        fs_buf[i] = 0;
-
-    i = 0;
-    fs_buf[i++] = '/';
-    for (int j = 0; j < state->wd->num_components; j++)
-    {
-        char *comp = state->wd->components[j];
-        while (*comp)
-        {
-            fs_buf[i++] = *comp++;
-        }
-        fs_buf[i++] = '/';
-    }
-
-    return fs_buf;
-}
-
-void fs_read(FSDriver *driver, Path *path)
-{
-    Entry *file = driver->readFile(driver, path);
-    printf("%s\n", file->data);
-
-    mfree(file->data);
-    mfree(file);
+    return path_join(state->path);
 }
 
 void fs_init(ide_device *ide)
@@ -44,106 +18,99 @@ void fs_init(ide_device *ide)
         state = (FSState *)calloc(sizeof(FSState));
         state->current_driver = fat12_init_driver(ide);
 
-        Path *path = (Path *)calloc(sizeof(Path));
-        path->num_components = 0;
-        state->wd = path;
+        state->path = (Path *)calloc(sizeof(Path));
+        path_init(state->path);
     }
 }
 
 void fs_ls(char *dir)
 {
-    Entry *list = state->current_driver->directoryListing(state->current_driver, state->wd);
-    if (list <= 0)
+    Path *path = (strlen(dir) > 0 ? path_split(dir) : state->path);
+    fat_directory_listing *listing = (fat_directory_listing *)state->current_driver->directoryListing(state->current_driver, path);
+    if (listing)
     {
-        printf("[FS] An error occurred!\n");
+        for (int i = 0; i < 512; i++)
+        {
+            if ((listing->contents[i].raw[0] & 0xFF) == 0x00)
+                break; // no more listings in this sector
+            if ((listing->contents[i].raw[0] & 0xFF) == 0xE5)
+                continue; // listing is unused
+
+            char fs_name[13] = {0};
+            if (listing->contents[i].attributes & 0x10)
+            { // directory
+                fat12_parse_filename(fs_name, listing->contents[i].name);
+                printf("~%s ", fs_name);
+            }
+            else if (listing->contents[i].attributes & 0x0F)
+            { // long file name, ignore for now
+            }
+            else
+            { // normal file
+                fat12_parse_filename(fs_name, listing->contents[i].name);
+                printf("%s ", fs_name);
+            }
+        }
+        printf("\n");
     }
     else
     {
-        Path *current = list;
-        while (current)
-        {
-            printf("%c%s ", ' ', current->components[current->num_components - 1]);
-            current = current + sizeof(Path);
-        }
-        printf("\n");
+        printf("ls: no such directory\n");
     }
 }
 
 void fs_cat(char *dir)
 {
-    char *new_component = (char *)calloc(strlen(dir) + 1);
-    memcpy(new_component, dir, strlen(dir) + 1);
+    if (strlen(dir) == 0)
+        return;
 
-    strupper(new_component);
-    state->wd->components[state->wd->num_components] = new_component;
-    state->wd->num_components++;
+    Path *final = path_get_final(state->path, dir);
 
-    if (!state->current_driver->entryExists(state->current_driver, state->wd, FileEntry))
-    {
-        printf("%s: no such file\n", dir);
-    }
+    uint16_t *data = state->current_driver->readFile(state->current_driver, final);
+    if (data)
+        printf("%s\n", data);
     else
-    {
-        Entry *file = state->current_driver->readFile(state->current_driver, state->wd);
-        size_t len = strlen((char*)file->data);
-        for (int i = 0; i < (len + 128) / 128; i++)
-        {
-            for (int j = 0; j < 128; j++)
-            {
-                printf("%c", file->data[(i*128)+j]);
-            }
-            printf("\n");
-        }
-    }
+        printf("cat: no such file\n");
 
-    mfree(new_component);
-    state->wd->num_components--;
+    path_free(final);
 }
 
 void fs_cd(char *dir)
 {
-    if (!strcmp(dir, "."))
-        return;
-
-    if (!strcmp(dir, ".."))
+    if (strlen(dir) == 0)
     {
-        if (state->wd->num_components > 0)
-        {
-            state->wd->num_components--;
-        }
+        return;
+    }
+    else if (strcmp(dir, ".") == 0)
+    {
+        return;
+    }
+    else if (strcmp(dir, "..") == 0)
+    {
+        path_remove_last(state->path);
+        return;
     }
     else
     {
-        char *new_component = (char *)calloc(strlen(dir) + 1);
-        memcpy(new_component, dir, strlen(dir) + 1);
-
-        strupper(new_component);
-        state->wd->components[state->wd->num_components] = new_component;
-        state->wd->num_components++;
-
-        if (!state->current_driver->entryExists(state->current_driver, state->wd, DirectoryEntry))
+        Path *final = path_get_final(state->path, dir);
+        int exists = state->current_driver->entryExists(state->current_driver, final, DirectoryEntry);
+        if (exists)
         {
-            printf("%s: no such directory\n", dir);
-            mfree(new_component);
-            state->wd->num_components--;
+            path_free(state->path);
+            state->path = final;
+        }
+        else
+        {
+            path_free(final);
+            printf("cd: no such directory\n");
         }
     }
 }
 
 void fs_mkdir(char *dir)
 {
-
 }
 
 void fs_write(char *dir)
 {
-    Path *p = (Path *)calloc(sizeof(Path));
-    p->num_components = 1;
-    p->components[0] = "written.txt";
-
-    File *f = (File *)calloc(sizeof(File));
-    f->path = p;
-    f->data = (uint8_t *)"this was written from the os";
-
-    state->current_driver->writeFile(state->current_driver, p, f);
 }
