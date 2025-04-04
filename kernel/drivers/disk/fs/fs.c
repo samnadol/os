@@ -133,3 +133,13 @@ void fs_touch(char *dir)
     if (!result)    
         printf("touch: failed!\n");
 }
+
+void fs_rm(char *dir)
+{ // remove file
+
+}
+
+void fs_rmd(char *dir)
+{ // remove dir
+
+}
