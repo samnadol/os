@@ -56,7 +56,7 @@ uint16_t *ata_28bit_pio_read_sector(ide_device d, uint32_t lba, uint32_t sectorc
     return buf;
 }
 
-bool ata_28bit_pio_write_sector(ide_device d, uint32_t lba, uint32_t sectorcount, uint16_t *data)
+bool ata_28bit_pio_write_sector(ide_device d, uint32_t lba, uint32_t sectorcount, uint16_t *data, size_t size)
 {
     ide_write(d.channel, ATA_REG_HDDEVSEL, 0xE0 | (d.drive << 4)); // select drive
     ide_write(d.channel, ATA_REG_SECCOUNT0, sectorcount);          // select sector count
@@ -79,9 +79,26 @@ bool ata_28bit_pio_write_sector(ide_device d, uint32_t lba, uint32_t sectorcount
     if (status & ATA_SR_ERR)
         return 0;
 
-    for (int i = 0; i < d.sector_size; i++)
-        outw(d.channel.io_base + ATA_REG_DATA, data[i]);
-    status = ide_read(d.channel, ATA_REG_STATUS);
+    // printf("[ata] writing data at sector %d of size %d\n", lba, size);
+    // printf("%s\n", data);
+
+    int byte = 0;
+    for (int s = 0; s < sectorcount; s++)
+    {
+        for (int i = 0; i < d.sector_size; i++)
+        {
+            if ((s * d.sector_size) + i < size)
+            {
+                outw(d.channel.io_base + ATA_REG_DATA, data[(s * d.sector_size) + i]);
+            }
+            else
+            {
+                outw(d.channel.io_base + ATA_REG_DATA, 0);
+            }
+        }
+        status = ide_read(d.channel, ATA_REG_STATUS);
+        timer_wait(1);
+    }
 
     time = 0;
     while (time < 100000)
@@ -143,7 +160,7 @@ bool ata_write_word(ide_device d, uint32_t lba, uint16_t offset, uint16_t data)
 {
     uint16_t *old_data = ata_28bit_pio_read_sector(d, lba, 1);
     old_data[offset] = data;
-    bool success = ata_28bit_pio_write_sector(d, lba, 1, old_data);
+    bool success = ata_28bit_pio_write_sector(d, lba, 1, old_data, ata_get_sector_size(d));
     mfree(old_data);
     return success;
 }

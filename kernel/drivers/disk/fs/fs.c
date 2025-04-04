@@ -27,6 +27,7 @@ void fs_ls(char *dir)
 {
     Path *path = (strlen(dir) > 0 ? path_split(dir) : state->path);
     fat_directory_listing *listing = (fat_directory_listing *)state->current_driver->directoryListing(state->current_driver, path);
+
     if (listing)
     {
         for (int i = 0; i < 512; i++)
@@ -66,11 +67,20 @@ void fs_cat(char *dir)
 
     Path *final = path_get_final(state->path, dir);
 
+    fat_directory_entry_standard *info;
+    int exists = state->current_driver->fileInfo(state->current_driver, final, FileEntry, &info);
+
     uint16_t *data = state->current_driver->readFile(state->current_driver, final);
     if (data)
-        printf("%s\n", data);
+    {
+        for (int i = 0; i < info->file_size_bytes; i++)
+            printf("%c", ((uint8_t *)data)[i]);
+        printf("\n");
+    }
     else
+    {
         printf("cat: no such file\n");
+    }
 
     path_free(final);
 }
@@ -93,8 +103,9 @@ void fs_cd(char *dir)
     else
     {
         Path *final = path_get_final(state->path, dir);
-        int exists = state->current_driver->entryExists(state->current_driver, final, DirectoryEntry);
-        if (exists)
+        fat_directory_entry_standard *info;
+        int exists = state->current_driver->fileInfo(state->current_driver, final, DirectoryEntry, &info);
+        if (info->first_cluster_number_low)
         {
             path_free(state->path);
             state->path = final;
@@ -109,8 +120,16 @@ void fs_cd(char *dir)
 
 void fs_mkdir(char *dir)
 {
+    Path *final = path_get_final(state->path, dir);
+    int result = state->current_driver->createDirectory(state->current_driver, final);
+    if (!result)    
+        printf("mkdir: failed!\n");
 }
 
-void fs_write(char *dir)
+void fs_touch(char *dir)
 {
+    Path *final = path_get_final(state->path, dir);
+    int result = state->current_driver->createFile(state->current_driver, final);
+    if (!result)    
+        printf("touch: failed!\n");
 }

@@ -27,7 +27,6 @@ typedef union __attribute__((packed)) time_t
 
 typedef struct __attribute__((packed)) fat_bios_parameter_block
 {
-    // 13 bytes
     uint16_t bytes_per_logical_sector;
     uint8_t logical_sectors_per_cluster;
     uint16_t reserved_logical_sectors;
@@ -37,13 +36,11 @@ typedef struct __attribute__((packed)) fat_bios_parameter_block
     uint8_t media_descriptor;
     uint16_t logical_sectors_per_fat;
 
-    // 12 bytes
     uint16_t physical_sectors_per_track;
     uint16_t number_of_heads;
     uint32_t number_of_hidden_sectors;
     uint32_t total_logical_sectors_lg;
 
-    // 26 bytes
     uint8_t physical_drive_number;
     uint8_t reserved;
     uint8_t extended_boot_signature;
@@ -101,14 +98,13 @@ typedef union __attribute__((packed)) fat_directory_entry_longname
     uint16_t raw[16];
 } fat_directory_entry_longname;
 
-typedef struct __attribute__((packed)) fat_directory_listing
+typedef struct fat_directory_listing
 {
-    union __attribute__((packed))
+    union
     {
         fat_directory_entry_standard contents[512];
         uint16_t raw[8192];
     };
-    uint16_t num_contents;
 } fat_directory_listing;
 
 typedef enum
@@ -121,8 +117,11 @@ typedef struct FSDriver
 {
     uint16_t *(*readFile)(struct FSDriver *, Path *);
     void (*writeFile)(struct FSDriver *, Path *, uint16_t *);
+    
+    int (*createDirectory)(struct FSDriver *, Path *);
+    int (*createFile)(struct FSDriver *, Path *);
 
-    uint16_t (*entryExists)(struct FSDriver *, Path *, EntryType);
+    int (*fileInfo)(struct FSDriver *, Path *, EntryType, fat_directory_entry_standard **);
     fat_directory_listing *(*directoryListing)(struct FSDriver *, Path *);
 
     ide_device *ide;
@@ -142,6 +141,6 @@ void fs_ls(char *dir);
 void fs_cd(char *dir);
 void fs_cat(char *dir);
 void fs_mkdir(char *dir);
-void fs_write(char *dir);
+void fs_touch(char *dir);
 
 char *fs_get_wd();

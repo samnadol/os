@@ -83,6 +83,7 @@ osimg:
 	mcopy -i os.img hello.txt ::/hello.txt
 	rm hello.txt
 
-	echo "this is a very long file content with many characters and numbers 12434382432 and special symbols @(*)@!&#&#*(@)" > veryextremelylongfilename.txt
-	mcopy -i os.img veryextremelylongfilename.txt ::/veryextremelylongfilename.txt
-	rm veryextremelylongfilename.txt
+	mmd -i os.img ::/folder
+	echo "this is a very long file content with many characters and numbers 12434382432 and special symbols @(*)@!&#&#*(@)" > infolder.txt
+	mcopy -i os.img infolder.txt ::/folder/infolder.txt
+	rm infolder.txt

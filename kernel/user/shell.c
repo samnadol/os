@@ -367,9 +367,9 @@ void process_command(tty_interface *tty)
     {
         fs_mkdir(args->next->val);
     }
-    else if (!strcmp(args[0].val, "write"))
+    else if (!strcmp(args[0].val, "touch"))
     {
-        fs_write(args->next->val);
+        fs_touch(args->next->val);
     }
     else
     {
