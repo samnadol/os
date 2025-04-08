@@ -131,9 +131,10 @@ void kernel_main(multiboot_info_t *mbd, uint32_t magic)
 			// sendTLSHandshake(ethernet_first_netdev());
 		}
 	}
-
-	// required for disk
-	fs_init(ide_first_disk());
+	if (ide_first_disk())
+	{
+		fs_init(ide_first_disk());
+	}
 
 	// vga_switch_mode(VGA_GUI);
 	// gui_init();

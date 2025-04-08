@@ -178,18 +178,18 @@ void pci_init()
                         continue;
                     }
                     break;
-                // case 0x02:
-                //     dprintf(0, "[PCI] Ethernet Controller %x:%x\n", new->class, new->subclass);
-                //     switch (new->subclass)
-                //     {
-                //     case 0x00:
-                //         init_device(new, ethernet_device_init);
-                //         break;
-                //     default:
-                //         mfree(new);
-                //         continue;
-                //     }
-                //     break;
+                case 0x02:
+                    dprintf(0, "[PCI] Ethernet Controller %x:%x\n", new->class, new->subclass);
+                    switch (new->subclass)
+                    {
+                    case 0x00:
+                        init_device(new, ethernet_device_init);
+                        break;
+                    default:
+                        mfree(new);
+                        continue;
+                    }
+                    break;
                 // case 0x07:
                 // case 0x0c:
                 //     dprintf(1, "[PCI] Serial Controller\n");

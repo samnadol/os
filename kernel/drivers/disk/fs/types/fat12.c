@@ -36,7 +36,7 @@ uint16_t *fat12_read_table(ide_device *ide, fat_bootsector *bs)
     return fat;
 }
 
-int fat12_write_table(ide_device *ide, fat_bootsector *bs, uint16_t* fat_write)
+int fat12_write_table(ide_device *ide, fat_bootsector *bs, uint16_t *fat_write)
 {
     uint32_t size_of_fat = sizeof(uint16_t) * bs->ebpb.logical_sectors_per_fat * bs->ebpb.bytes_per_logical_sector;
     uint16_t *data = (uint16_t *)calloc(size_of_fat);
@@ -50,7 +50,7 @@ int fat12_write_table(ide_device *ide, fat_bootsector *bs, uint16_t* fat_write)
     }
 
     ata_28bit_pio_write_sector(*ide, bs->ebpb.reserved_logical_sectors, bs->ebpb.logical_sectors_per_fat, data, size_of_fat);
-    // ata_28bit_pio_write_sector(*ide, bs->ebpb.reserved_logical_sectors + bs->ebpb.logical_sectors_per_fat, bs->ebpb.logical_sectors_per_fat, data, size_of_fat);
+    ata_28bit_pio_write_sector(*ide, bs->ebpb.reserved_logical_sectors + bs->ebpb.logical_sectors_per_fat, bs->ebpb.logical_sectors_per_fat, data, size_of_fat);
 
     return 1;
 }
@@ -112,92 +112,82 @@ int fat12_write_data(ide_device *ide, fat_bootsector *bs, uint16_t *fat, uint16_
     int clusters_needed = (size + (bytes_per_cluster - 1)) / bytes_per_cluster;
     int entries_per_fat = (bs->ebpb.logical_sectors_per_fat * (3 * bs->ebpb.bytes_per_logical_sector / 12));
 
-    if (start_cluster == 0)
-    { // find and allocate start cluster
-        for (size_t i = 0; i < entries_per_fat; i++)
-        {
-            if (fat[i] == 0)
-            {
-                start_cluster = i;
-                break;
-            }
-        }
-        
-        // printf("[fat] writing data to cluster %d of size %d\n", start_cluster, size);
-
-        int last_cluster;
-        int current_cluster = start_cluster;
-        for (int i = 0; i < clusters_needed; i++)
-        {
-            // printf("(new) writing at cluster %d\n", current_cluster);
-
-            ata_28bit_pio_write_sector(*ide, first_data_sector - 2 + current_cluster, bs->ebpb.logical_sectors_per_cluster, &data[(bs->ebpb.bytes_per_logical_sector) * i], size > bs->ebpb.bytes_per_logical_sector ? bs->ebpb.bytes_per_logical_sector : size);
-            size -= bs->ebpb.bytes_per_logical_sector;
-            
-            last_cluster = current_cluster;
-            for (size_t i = 0; i < entries_per_fat; i++)
-            {
-                if (fat[i] == 0 && i != last_cluster)
-                {
-                    current_cluster = i;
-                    break;
-                }
-            }
-            fat[last_cluster] = current_cluster;
-        }
-        fat[current_cluster] = 0xFFF;
-    }
-    else if (start_cluster == -1)
+    if (start_cluster == -1)
     { // writing in root dir
-        // printf("[fat] writing data to cluster %d of size %d\n", root_directory_location, size);
         ata_28bit_pio_write_sector(*ide, root_directory_location, root_directory_sectors, data, size);
         return -1;
     }
     else
-    { // overwriting something already existing
-        // printf("[fat] writing data to cluster %d of size %d\n", start_cluster, size);
+    {
+        int i = 0;
+        int current_cluster;
+        int clusters_found = 0;
+        int *clusters = (int *)calloc(sizeof(int) * clusters_needed);
+        if (start_cluster != 0)
+        {
+            current_cluster = start_cluster;
+            if (clusters_needed > 0)
+            {
+                do
+                {
+                    clusters[clusters_found++] = current_cluster;
+                    current_cluster = fat[current_cluster];
+                } while ((current_cluster < 0xFF8) && (clusters_found < clusters_needed));
+            }
 
-        int last_cluster;
-        int current_cluster = start_cluster;
+            if (current_cluster < 0xFF8)
+            {
+                int next_cluster;
+                do
+                {
+                    next_cluster = fat[current_cluster];
+                    fat[current_cluster] = 0x000;
+                    current_cluster = next_cluster;
+                } while (current_cluster < 0xFF8);
+            }
+
+            printf("found %d clusters, %d needed\n", clusters_found, clusters_needed);
+
+            while (clusters_found < clusters_needed)
+            {
+                while (fat[i] != 0)
+                    i++;
+                clusters[clusters_found++] = i;
+                current_cluster = i++;
+            }
+        }
+        else
+        {
+            while (clusters_found < clusters_needed)
+            {
+                while (fat[i] != 0)
+                    i++;
+                clusters[clusters_found++] = i;
+                current_cluster = i++;
+            }
+        }
+
+        for (int cluster = 0; cluster < clusters_needed - 1; cluster++)
+        {
+            fat[clusters[cluster]] = clusters[cluster + 1];
+        }
+        fat[clusters[clusters_needed - 1]] = 0xFFF;
+
         for (int i = 0; i < clusters_needed; i++)
         {
-            // printf("(overwrite) writing at cluster %d\n", current_cluster);
-
-            ata_28bit_pio_write_sector(*ide, first_data_sector - 2 + current_cluster, bs->ebpb.logical_sectors_per_cluster, &data[(bs->ebpb.bytes_per_logical_sector) * i], size > bs->ebpb.bytes_per_logical_sector ? bs->ebpb.bytes_per_logical_sector : size);
-            size -= bs->ebpb.bytes_per_logical_sector;
-            
-            last_cluster = current_cluster;
-            if (fat[i] < 0xFF8 && fat[i] != 0x000)
-            {
-                current_cluster = fat[i];
-            }
-            else
-            {
-                for (size_t i = 0; i < entries_per_fat; i++)
-                {
-                    if (fat[i] == 0 && i != last_cluster)
-                    {
-                        current_cluster = i;
-                        break;
-                    }
-                }
-            }
-            fat[last_cluster] = current_cluster;
+            // printf("writing cluster %d %d %s\n", first_data_sector - 2 + clusters[i], size, data + ((bs->ebpb.logical_sectors_per_cluster * bs->ebpb.bytes_per_logical_sector / 2) * i));
+            ata_28bit_pio_write_sector(
+                *ide,
+                first_data_sector - 2 + clusters[i],
+                bs->ebpb.logical_sectors_per_cluster,
+                data + ((bs->ebpb.logical_sectors_per_cluster * bs->ebpb.bytes_per_logical_sector / 2) * i),
+                size > bs->ebpb.bytes_per_logical_sector ? (bs->ebpb.logical_sectors_per_cluster * bs->ebpb.bytes_per_logical_sector) : size);
+            size -= (bs->ebpb.logical_sectors_per_cluster * bs->ebpb.bytes_per_logical_sector);
         }
-        last_cluster = fat[current_cluster];
-        fat[current_cluster] = 0xFFF;
 
-        // free rest of FAT chain if used less than needed
-        while (last_cluster < 0xFF8 && last_cluster != 0x000)
-        {
-            last_cluster = fat[last_cluster];
-            fat[last_cluster] = 0x000;
-        }
+        fat12_write_table(ide, bs, fat);
+        return clusters[0];
     }
-
-    fat12_write_table(ide, bs, fat);
-
-    return start_cluster;
 }
 
 void fat12_parse_filename(char *dest, const char *fat_name)
@@ -229,7 +219,7 @@ void fat12_parse_filename(char *dest, const char *fat_name)
 uint16_t *fat12_read_file(FSDriver *driver, Path *path)
 {
     fat_directory_entry_standard *info;
-    int exists = fat12_get_file_info(driver, path, FileEntry, &info);
+    int exists = fat12_get_fat_file_info(driver, path, FileEntry, &info);
     if (exists && info->first_cluster_number_low)
     {
         uint16_t *data = fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, info->first_cluster_number_low);
@@ -238,11 +228,7 @@ uint16_t *fat12_read_file(FSDriver *driver, Path *path)
     return 0;
 }
 
-void fat12_write_file(FSDriver *driver, Path *path, uint16_t *data)
-{
-}
-
-fat_directory_listing *fat12_list_directory(FSDriver *driver, Path *path)
+fat_directory_listing *fat12_get_directory_sector(FSDriver *driver, Path *path)
 {
     fat_directory_listing *root_data = (fat_directory_listing *)fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, -1);
     if (path->count == 0)
@@ -299,6 +285,23 @@ fat_directory_listing *fat12_list_directory(FSDriver *driver, Path *path)
     return 0;
 }
 
+void fat12_write_directory(FSDriver *driver, fat_bootsector *bs, uint16_t *fat, fat_directory_listing *data, int cluster)
+{
+
+    int i = 0;
+    while (data->contents[i].name[0] != 0)
+    {
+        printf("%x\n", data->contents[i].name[0]);
+        i += 1;
+    }
+    printf("%x\n", data->contents[i].name[0]);
+
+    size_t table_size = i * sizeof(fat_directory_entry_standard);
+    printf("writing %d bytes\n", table_size);
+
+    fat12_write_data(driver->ide, driver->fat_bs, driver->fat_table, data->raw, table_size, cluster);
+}
+
 void fat12_free_listing(fat_directory_listing *toFree)
 {
 }
@@ -306,16 +309,16 @@ void fat12_free_listing(fat_directory_listing *toFree)
 int fat12_create_directory(FSDriver *driver, Path *path)
 {
     fat_directory_entry_standard *file_info;
-    int file_exists = fat12_get_file_info(driver, path, DirectoryEntry, &file_info);
+    int file_exists = fat12_get_fat_file_info(driver, path, DirectoryEntry, &file_info);
     if (file_exists)
         return 0;
 
     Path *parent = path_get_parent(path);
     fat_directory_entry_standard *parent_info;
-    int parent_exists = fat12_get_file_info(driver, parent, DirectoryEntry, &parent_info);
+    int parent_exists = fat12_get_fat_file_info(driver, parent, DirectoryEntry, &parent_info);
     if (parent_exists == 0)
         return 0;
-    fat_directory_listing *data = (fat_directory_listing *)fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, parent_info->first_cluster_number_low);
+    fat_directory_listing *data = (fat_directory_listing *)fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, parent_exists == FileInfoType_RootDir ? -1 : parent_info->first_cluster_number_low);
 
     int entry_loc;
     for (entry_loc = 0; entry_loc < 2048; entry_loc++)
@@ -330,7 +333,7 @@ int fat12_create_directory(FSDriver *driver, Path *path)
         }
     }
     // entry_loc--;
-    
+
     // write data to sectors
     fat_directory_listing *new_data = (fat_directory_listing *)calloc(sizeof(fat_directory_listing));
     memcpy(new_data->contents[0].name, ".          ", 11);
@@ -347,13 +350,7 @@ int fat12_create_directory(FSDriver *driver, Path *path)
     data->contents[entry_loc].first_cluster_number_low = data_sector;
     data->contents[entry_loc].first_cluster_number_high = 0;
 
-    int i = 0;
-    while (data->raw[i] != 0)
-    {
-        i += sizeof(fat_directory_entry_standard);
-    }
-
-    fat12_write_data(driver->ide, driver->fat_bs, driver->fat_table, data->raw, i, parent_info->first_cluster_number_low);
+    fat12_write_directory(driver, driver->fat_bs, driver->fat_table, data, parent_exists == FileInfoType_RootDir ? -1 : parent_info->first_cluster_number_low);
 
     return 1;
 }
@@ -361,16 +358,16 @@ int fat12_create_directory(FSDriver *driver, Path *path)
 int fat12_create_file(FSDriver *driver, Path *path)
 {
     fat_directory_entry_standard *file_info;
-    int file_exists = fat12_get_file_info(driver, path, FileEntry, &file_info);
+    FileInfoType file_exists = fat12_get_fat_file_info(driver, path, FileEntry, &file_info);
     if (file_exists)
         return 0;
-        
+
     Path *parent = path_get_parent(path);
     fat_directory_entry_standard *parent_info;
-    int parent_exists = fat12_get_file_info(driver, parent, DirectoryEntry, &parent_info);
+    FileInfoType parent_exists = fat12_get_fat_file_info(driver, parent, DirectoryEntry, &parent_info);
     if (parent_exists == 0)
         return 0;
-    fat_directory_listing *data = (fat_directory_listing *)fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, parent_info->first_cluster_number_low);
+    fat_directory_listing *data = (fat_directory_listing *)fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, parent_exists == FileInfoType_RootDir ? -1 : parent_info->first_cluster_number_low);
 
     int entry_loc;
     for (entry_loc = 0; entry_loc < 2048; entry_loc++)
@@ -385,11 +382,12 @@ int fat12_create_file(FSDriver *driver, Path *path)
         }
     }
 
+    int num_repeats = 30;
     char *text = "this was written from the os";
-    uint16_t *text_data = (uint16_t *)calloc(sizeof(uint16_t) * strlen(text));
-    memcpy((uint8_t *)text_data, text, strlen(text));
-
-    int data_sector = fat12_write_data(driver->ide, driver->fat_bs, driver->fat_table, text_data, strlen(text), 0);
+    uint16_t *text_data = (uint16_t *)calloc(sizeof(uint16_t) * strlen(text) * num_repeats);
+    for (int i = 0; i < num_repeats; i++)
+        memcpy((uint8_t *)(text_data + (i * strlen(text) / 2)), text, strlen(text));
+    int data_sector = fat12_write_data(driver->ide, driver->fat_bs, driver->fat_table, text_data, strlen(text) * num_repeats, 0);
 
     // create and write descriptor to entry
     memcpy(data->contents[entry_loc].name, "        ", 8);
@@ -398,30 +396,45 @@ int fat12_create_file(FSDriver *driver, Path *path)
     data->contents[entry_loc].attributes |= 0x00;
     data->contents[entry_loc].first_cluster_number_high = 0;
     data->contents[entry_loc].first_cluster_number_low = data_sector;
-    data->contents[entry_loc].file_size_bytes = strlen(text);
+    data->contents[entry_loc].file_size_bytes = strlen(text) * num_repeats;
 
-    int i = 0;
-    while (data->raw[i] != 0)
-    {
-        i += sizeof(fat_directory_entry_standard);
-    }
-
-    fat12_write_data(driver->ide, driver->fat_bs, driver->fat_table, data->raw, i, parent_info->first_cluster_number_low);
+    fat12_write_directory(driver, driver->fat_bs, driver->fat_table, data, parent_exists == FileInfoType_RootDir ? -1 : parent_info->first_cluster_number_low);
     return 1;
 }
 
-int fat12_get_file_info(FSDriver *driver, Path *path, EntryType type, fat_directory_entry_standard **output)
+void fat12_write_file(FSDriver *driver, Path *path, uint16_t *data, size_t size)
+{
+    fat_directory_entry_standard *file_info;
+    FileInfoType file_exists = fat12_get_fat_file_info(driver, path, FileEntry, &file_info);
+    if (!file_exists)
+        return;
+
+    Path *parent = path_get_parent(path);
+    fat_directory_entry_standard *parent_info;
+    FileInfoType parent_exists = fat12_get_fat_file_info(driver, parent, DirectoryEntry, &parent_info);
+    if (parent_exists == 0)
+        return;
+    fat_directory_listing *parent_dir_data = (fat_directory_listing *)fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, parent_exists == FileInfoType_RootDir ? -1 : parent_info->first_cluster_number_low);
+
+    // printf();
+    fat12_write_data(driver->ide, driver->fat_bs, driver->fat_table, data, size, file_info->first_cluster_number_low);
+    // parent_dir_data->contents update size in parent dir
+
+    fat12_write_directory(driver, driver->fat_bs, driver->fat_table, parent_dir_data, parent_exists == FileInfoType_RootDir ? -1 : parent_info->first_cluster_number_low);
+}
+
+FileInfoType fat12_get_fat_file_info(FSDriver *driver, Path *path, EntryType type, fat_directory_entry_standard **output)
 {
     char *path_string = path_join(path);
     if (strcmp(path_string, "/") == 0)
     {
         mfree(path_string);
-        return 0;
+        return FileInfoType_RootDir;
     }
     mfree(path_string);
 
     Path *parent = path_get_parent(path);
-    fat_directory_listing *parent_dir = fat12_list_directory(driver, parent);
+    fat_directory_listing *parent_dir = fat12_get_directory_sector(driver, parent);
 
     for (int i = 0; i < 2048; i++)
     {
@@ -444,14 +457,124 @@ int fat12_get_file_info(FSDriver *driver, Path *path, EntryType type, fat_direct
                 fat12_free_listing(parent_dir);
                 path_free(parent);
                 *output = &parent_dir->contents[i];
-                return 1;
+                return FileInfoType_Standard;
             }
         }
     }
 
     fat12_free_listing(parent_dir);
     path_free(parent);
-    return 0;
+    return FileInfoType_Nonexistent;
+}
+
+int fat12_remove_directory(FSDriver *driver, Path *path)
+{
+    return 1;
+}
+
+int fat12_remove_file(FSDriver *driver, Path *path)
+{
+    fat_directory_entry_standard *file_info;
+    FileInfoType file_exists = fat12_get_fat_file_info(driver, path, FileEntry, &file_info);
+    if (!file_exists)
+        return 0;
+
+    Path *parent = path_get_parent(path);
+    fat_directory_entry_standard *parent_info;
+    FileInfoType parent_exists = fat12_get_fat_file_info(driver, parent, DirectoryEntry, &parent_info);
+    if (parent_exists == 0)
+        return 0;
+    fat_directory_listing *data = (fat_directory_listing *)fat12_read_data(driver->ide, driver->fat_bs, driver->fat_table, parent_exists == FileInfoType_RootDir ? -1 : parent_info->first_cluster_number_low);
+
+    for (int i = 0; i < 2048; i++)
+    {
+        if ((data->contents[i].raw[0] & 0xFF) == 0x00)
+            break; // no more listings in this sector
+        if ((data->contents[i].raw[0] & 0xFF) == 0xE5)
+            continue; // listing is unused
+
+        char fs_name[13] = {0};
+        char in_name[13] = {0};
+
+        fat12_parse_filename(fs_name, data->contents[i].name);
+        memcpy(in_name, path->components[path->count - 1], strlen(path->components[path->count - 1]));
+        strlower(in_name);
+
+        if (strcmp(fs_name, in_name) == 0)
+        {
+            fat12_write_data(driver->ide, driver->fat_bs, driver->fat_table, 0, 0, data->contents[i].first_cluster_number_low);
+            data->contents[i].raw[0] = 0xE5;
+            break;
+        }
+    }
+
+    fat12_write_directory(driver, driver->fat_bs, driver->fat_table, data, parent_exists == FileInfoType_RootDir ? -1 : parent_info->first_cluster_number_low);
+
+    return 1;
+}
+
+DirectoryListing *fat12_list_directory(FSDriver *driver, Path *path)
+{
+    fat_directory_listing *data = fat12_get_directory_sector(driver, path);
+
+    if (data)
+    {
+        DirectoryListing *prev = NULL;
+        DirectoryListing *first = NULL;
+
+        int i = 0;
+        while (data->contents[i].raw[0] != 0)
+        {
+            if ((data->contents[i].raw[0] & 0xFF) == 0xE5)
+            {
+                i++;
+                continue;
+            }
+
+            // printf("item\n");
+
+            DirectoryListing *new = (DirectoryListing *)calloc(sizeof(DirectoryListing));
+            new->info.name = (char *)calloc(sizeof(char) * 11);
+            fat12_parse_filename(new->info.name, data->contents[i].name);
+            new->info.ext = data->contents[i].ext;
+            new->info.type = data->contents[i].attributes & 0x10 ? DirectoryEntry : FileEntry;
+            new->info.size = data->contents[i].file_size_bytes;
+
+            if (!first)
+                first = new;
+            if (prev)
+                prev->next = new;
+
+            prev = new;
+            i++;
+        }
+
+        return first;
+    }
+    else
+    {
+        // printf("nothing\n");
+        return 0;
+    }
+}
+
+FileInfoType fat12_get_file_info(FSDriver *driver, Path *path, EntryType type, FileInfo **output)
+{
+    fat_directory_entry_standard *entry;
+    FileInfoType fileinfo_type = fat12_get_fat_file_info(driver, path, type, &entry);
+
+    if (output)
+    {
+        if (fileinfo_type == FileInfoType_Nonexistent)
+            return FileInfoType_Nonexistent;
+
+        (*output)->name = entry->name;
+        (*output)->ext = entry->ext;
+        (*output)->type = (fileinfo_type == FileInfoType_RootDir) ? DirectoryEntry : (entry->attributes & 0x10 ? DirectoryEntry : FileEntry);
+        (*output)->size = entry->file_size_bytes;
+    }
+
+    return fileinfo_type;
 }
 
 FSDriver *fat12_init_driver(ide_device *ide)
@@ -465,6 +588,9 @@ FSDriver *fat12_init_driver(ide_device *ide)
 
     driver->createDirectory = fat12_create_directory;
     driver->createFile = fat12_create_file;
+
+    driver->removeDirectory = fat12_remove_directory;
+    driver->removeFile = fat12_remove_file;
 
     driver->directoryListing = fat12_list_directory;
     driver->fileInfo = fat12_get_file_info;
