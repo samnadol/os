@@ -43,6 +43,8 @@ char *human_readable_size(uint64_t size, char *buf, int bufsize);
 void *memset(void *ptr, int value, size_t num);
 void *memcpy(void *to, void *from, size_t n);
 
+size_t format_string(char *dst, const char *fmt, va_list ap);
+
 size_t sprintf(char *dst, const char *fmt, ...);
 
 #endif

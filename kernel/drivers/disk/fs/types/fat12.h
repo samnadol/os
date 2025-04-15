@@ -4,26 +4,7 @@
 #include "../../ata.h"
 #include "../fs.h"
 
-typedef union __attribute__((packed)) date_t
-{
-    struct __attribute__((packed))
-    {
-        unsigned day : 5;
-        unsigned month : 4;
-        unsigned year : 7;
-    };
-    uint16_t raw;
-} date_t;
-typedef union __attribute__((packed)) time_t
-{
-    struct __attribute__((packed))
-    {
-        unsigned second : 5;
-        unsigned minute : 6;
-        unsigned hour : 5;
-    };
-    uint16_t raw;
-} time_t;
+#define LFN_INDEX_ARR_SIZE 32
 
 typedef struct __attribute__((packed)) fat_bios_parameter_block
 {
@@ -82,6 +63,7 @@ typedef union __attribute__((packed)) fat_directory_entry_standard
     };
     uint16_t raw[16];
 } fat_directory_entry_standard;
+
 typedef union __attribute__((packed)) fat_directory_entry_longname
 {
     struct __attribute__((packed))
@@ -107,11 +89,22 @@ typedef struct fat_directory_listing
     };
 } fat_directory_listing;
 
-void fat12_parse_filename(char *dest, const char *fat_name);
+typedef struct
+{
+    bool found;
+
+    fat_directory_entry_standard *entry;
+    size_t entry_index;
+
+    size_t lfn_index[LFN_INDEX_ARR_SIZE];
+    size_t num_lfns;
+} fat_entry_search_result;
+
+void fat12_parse_filename(char *dest, const char *name, const char *ext);
 void fat12_free_listing(fat_directory_listing *toFree);
 
 FileInfoType fat12_get_file_info(FSDriver *driver, Path *path, EntryType type, FileInfo** info);
-FileInfoType fat12_get_fat_file_info(FSDriver *driver, Path *path, EntryType type, fat_directory_entry_standard **output);
+FileInfoType fat12_get_fat_file_info(FSDriver *driver, Path *path, EntryType type, fat_directory_entry_standard **output, uint16_t *entry_num);
 
 fat_directory_listing *fat12_get_directory_sector(FSDriver *driver, Path *path);
 

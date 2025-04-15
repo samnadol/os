@@ -3,6 +3,28 @@
 #include "path.h"
 #include "../ata.h"
 
+typedef union __attribute__((packed)) date_t
+{
+    struct __attribute__((packed))
+    {
+        unsigned day : 5;
+        unsigned month : 4;
+        unsigned year : 7;
+    };
+    uint16_t raw;
+} date_t;
+
+typedef union __attribute__((packed)) time_t
+{
+    struct __attribute__((packed))
+    {
+        unsigned second : 5;
+        unsigned minute : 6;
+        unsigned hour : 5;
+    };
+    uint16_t raw;
+} time_t;
+
 typedef enum EntryType
 {
     FileEntry,
@@ -19,9 +41,12 @@ typedef enum FileInfoType
 typedef struct FileInfo
 {
     char *name;
-    char *ext;
+    // char *ext;
     EntryType type;
     uint32_t size;
+
+    date_t creation_date;
+    time_t creation_time;
 } FileInfo;
 
 typedef struct DirectoryListing
@@ -65,4 +90,5 @@ void fs_touch(char *dir);
 void fs_rm(char *dir);
 void fs_rmdir(char *dir);
 
+void fs_fat();
 char *fs_get_wd();

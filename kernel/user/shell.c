@@ -371,6 +371,10 @@ void process_command(tty_interface *tty)
     {
         fs_touch(args->next->val);
     }
+    else if (!strcmp(args[0].val, "fat"))
+    {
+        fs_fat();
+    }
     else if (!strcmp(args[0].val, "rm"))
     {
         fs_rm(args->next->val);

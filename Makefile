@@ -69,7 +69,7 @@ build/%.o: %.asm
 
 build/%.o: %.c ${HEADERS}
 	@mkdir -p $(dir $@)
-	$(CC) $< -o $@ -g -c -m32 -ffreestanding -O3 -nostdlib -Wno-unused-variable -Werror -Wall
+	$(CC) $< -o $@ -g -c -m32 -ffreestanding -O3 -nostdlib -Wno-unused-variable -Werror -Wall -Wno-error=unused-but-set-variable
 
 test: build_test/test.o ${K_OBJ_BT}
 	$(CC) test.o $(K_OBJ_BT)

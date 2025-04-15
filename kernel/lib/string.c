@@ -20,38 +20,38 @@ void *memset(void *ptr, int value, size_t num)
 
 void *memcpy(void *to, void *from, size_t n)
 {
-    // size_t i = 0;
+    size_t i = 0;
     void *ret = to;
 
-    // for (i = 0; i < n / 8; i++)
-    // {
-    //     *(uint64_t *)to = *(uint64_t *)from;
+    for (i = 0; i < n / 8; i++)
+    {
+        *(uint64_t *)to = *(uint64_t *)from;
 
-    //     from += 8;
-    //     to += 8;
-    // }
+        from += 8;
+        to += 8;
+    }
 
-    // n -= i * 8;
+    n -= i * 8;
 
-    // for (i = 0; i < n / 4; i++)
-    // {
-    //     *(uint32_t *)to = *(uint32_t *)from;
+    for (i = 0; i < n / 4; i++)
+    {
+        *(uint32_t *)to = *(uint32_t *)from;
 
-    //     from += 4;
-    //     to += 4;
-    // }
+        from += 4;
+        to += 4;
+    }
 
-    // n -= i * 4;
+    n -= i * 4;
 
-    // for (i = 0; i < n / 2; i++)
-    // {
-    //     *(uint16_t *)to = *(uint16_t *)from;
+    for (i = 0; i < n / 2; i++)
+    {
+        *(uint16_t *)to = *(uint16_t *)from;
 
-    //     from += 2;
-    //     to += 2;
-    // }
+        from += 2;
+        to += 2;
+    }
 
-    // n -= i * 2;
+    n -= i * 2;
 
     uint8_t *c_src = (uint8_t *)from;
     uint8_t *c_dest = (uint8_t *)to;
@@ -406,85 +406,204 @@ size_t sputc(char *dst, char c)
     return sputs(dst, s);
 }
 
+size_t format_string(char *dst, const char *fmt, va_list ap)
+{
+    char buf[32];
+    char wbuf[8];
+
+    size_t chars_written = 0;
+    size_t buf_loc = 0;
+    size_t wbuf_loc;
+    size_t width;
+    int fmt_done;
+
+    buf[buf_loc] = 0;
+    for (int i = 0; i < strlen(fmt); i++)
+    {
+        if (fmt[i] == '%')
+        {
+            fmt_done = 0;
+            width = 0;
+            wbuf_loc = 0;
+            wbuf[0] = 0;
+
+            while (!fmt_done)
+            {
+                i++;
+                switch (fmt[i])
+                {
+                case 'd':
+                    int32_t a = va_arg(ap, int32_t);
+                    if (a < 0)
+                    {
+                        dst[chars_written++] = '-';
+                        a *= -1;
+                    }
+                    itoa(a, buf, 10);
+
+                    if (width > strlen(buf))
+                        for (int i = 0; i < (width - strlen(buf)); i++)
+                            dst[chars_written++] = '0';
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+
+                    fmt_done = 1;
+                    break;
+                case 'u':
+                    itoa(va_arg(ap, uint32_t), buf, 10);
+                    if (width > strlen(buf))
+                        for (int i = 0; i < (width - strlen(buf)); i++)
+                            dst[chars_written++] = '0';
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+
+                    fmt_done = 1;
+                    break;
+                case 'o':
+                    itoa(va_arg(ap, uint32_t), buf, 8);
+                    if (width > strlen(buf))
+                        for (int i = 0; i < (width - strlen(buf)); i++)
+                            dst[chars_written++] = '0';
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+
+                    fmt_done = 1;
+                    break;
+                case 'x':
+                    itoa(va_arg(ap, uint32_t), buf, 16);
+                    if (width > strlen(buf))
+                        for (int i = 0; i < (width - strlen(buf)); i++)
+                            dst[chars_written++] = '0';
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+
+                    fmt_done = 1;
+                    break;
+                case 'b':
+                    itoa(va_arg(ap, uint32_t), buf, 2);
+                    if (width > strlen(buf))
+                        for (int i = 0; i < (width - strlen(buf)); i++)
+                            dst[chars_written++] = '0';
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+
+                    fmt_done = 1;
+                    break;
+                case 'c':
+                    dst[chars_written++] = va_arg(ap, int);
+                    
+                    fmt_done = 1;
+                    break;
+                case 's':
+                    char *str = va_arg(ap, char *);
+                    for (int i = 0; i < strlen(str); i++)
+                        dst[chars_written++] = str[i];
+                    
+                    fmt_done = 1;
+                    break;
+                case 'p':
+                    itoa((uintptr_t)va_arg(ap, void *), buf, 16);
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+
+                    fmt_done = 1;
+                    break;
+                case 'f':
+                    human_readable_size(va_arg(ap, uint32_t), buf, 32);
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+
+                    fmt_done = 1;
+                    break;
+                case 'n':
+                    *va_arg(ap, int32_t *) = buf_loc;
+                    fmt_done = 1;
+                    break;
+                case '%':
+                    dst[chars_written++] = '%';
+                    
+                    fmt_done = 1;
+                    break;
+                case 'm':
+                    uint8_t *mac = va_arg(ap, uint8_t *);
+                    itoa(mac[0], buf, 16);
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+                    dst[chars_written++] = ':';
+                    itoa(mac[1], buf, 16);
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+                    dst[chars_written++] = ':';
+                    itoa(mac[2], buf, 16);
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+                    dst[chars_written++] = ':';
+                    itoa(mac[3], buf, 16);
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+                    dst[chars_written++] = ':';
+                    itoa(mac[4], buf, 16);
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+                    dst[chars_written++] = ':';
+                    itoa(mac[5], buf, 16);
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+                    fmt_done = 1;
+                    break;
+                case 'i':
+                    uint32_t ip = va_arg(ap, uint32_t);
+                    itoa((ip >> 24) & 0xFF, buf, 10);
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+                    dst[chars_written++] = '.';
+                    itoa((ip >> 16) & 0xFF, buf, 10);
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+                    dst[chars_written++] = '.';
+                    itoa((ip >> 8) & 0xFF, buf, 10);
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+                    dst[chars_written++] = '.';
+                    itoa((ip >> 0) & 0xFF, buf, 10);
+                    for (int i = 0; i < strlen(buf); i++)
+                        dst[chars_written++] = buf[i];
+                    fmt_done = 1;
+                    break;
+                default:
+                    wbuf[wbuf_loc++] = fmt[i];
+                    wbuf[wbuf_loc] = 0;
+                    width = atoi(wbuf);
+                }
+            }
+        }
+        else
+        {
+            switch (fmt[i])
+            {
+            case '\t':
+                for (int i = chars_written; i < chars_written + 4; i++)
+                    dst[i] = ' ';
+                chars_written += 4;
+                break;
+            case '\r':
+                break;
+            default:
+                dst[chars_written++] = fmt[i];
+            }
+        }
+    }
+    dst[chars_written] = 0;
+
+    return chars_written;
+}
+
 size_t sprintf(char *dst, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
 
-    char buf[32];
-    size_t char_printed = 0;
-    for (int i = 0; i < strlen(fmt); i++)
-    {
-        if (fmt[i] == '%')
-        {
-            i++;
-            switch (fmt[i])
-            {
-            case 'd':
-                int32_t a = va_arg(ap, int32_t);
-                if (a < 0)
-                {
-                    sputc(dst + char_printed, '-');
-                    a *= -1;
-                    char_printed += 1;
-                }
-                char_printed += sputs(dst + char_printed, itoa(a, buf, 10));
-                break;
-            case 'u':
-                char_printed += sputs(dst + char_printed, itoa(va_arg(ap, uint32_t), buf, 10));
-                break;
-            case 'o':
-                char_printed += sputs(dst + char_printed, itoa(va_arg(ap, uint32_t), buf, 8));
-                break;
-            case 'x':
-                char_printed += sputs(dst + char_printed, itoa(va_arg(ap, uint32_t), buf, 16));
-                break;
-            case 'b':
-                char_printed += sputs(dst + char_printed, itoa(va_arg(ap, uint32_t), buf, 2));
-                break;
-            case 'c':
-                char_printed += sputc(dst + char_printed, va_arg(ap, int));
-                break;
-            case 's':
-                char_printed += sputs(dst + char_printed, va_arg(ap, char *));
-                break;
-            case 'p':
-                char_printed += sputs(dst + char_printed, itoa((uintptr_t)va_arg(ap, void *), buf, 16));
-                break;
-            case 'n':
-                *va_arg(ap, int32_t *) = char_printed;
-                break;
-            case '%':
-                char_printed += sputc(dst + char_printed, '%');
-                break;
-            case 'm':
-                uint8_t *mac = va_arg(ap, uint8_t *);
-                char_printed += sprintf(dst + char_printed, "%x:%x:%x:%x:%x:%x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-                break;
-            case 'i':
-                uint32_t ip = va_arg(ap, uint32_t);
-                char_printed += sprintf(dst + char_printed, "%d.%d.%d.%d", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip >> 0) & 0xFF);
-                break;
-            case 'f':
-                human_readable_size(va_arg(ap, uint32_t), buf, 32);
-                char_printed += sputs(dst + char_printed, buf);
-                break;
-            case 't':
-                human_readable_time(va_arg(ap, uint32_t), buf, 32);
-                char_printed += sputs(dst + char_printed, buf);
-                break;
-            default:
-                va_arg(ap, void *);
-                char_printed += sputs(dst + char_printed, "(?)");
-            }
-        }
-        else
-        {
-            char_printed += sputc(dst + char_printed, fmt[i]);
-        }
-    }
-
-    dst[char_printed] = 0;
+    size_t char_printed = format_string(dst, fmt, ap);
 
     va_end(ap);
     return char_printed;

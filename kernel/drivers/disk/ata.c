@@ -42,6 +42,11 @@ uint16_t *ata_28bit_pio_read_sector(ide_device d, uint32_t lba, uint32_t sectorc
             timer_wait(1);
         }
     }
+    if (status & ATA_SR_ERR)
+    {
+        mfree(buf);
+        return 0;
+    }
 
     time = 0;
     while (time < 1000)

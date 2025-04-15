@@ -1,6 +1,7 @@
 #include "time.h"
 
 #include "string.h"
+#include "../drivers/tty.h"
 
 inline bool is_leap_year(uint16_t year)
 {
@@ -36,7 +37,7 @@ uint8_t days_for_month(uint16_t year, uint8_t month)
     }
 }
 
-char *convert_time(uint32_t epoch, char *buf)
+calendar_t time_calendar(uint32_t epoch)
 {
     uint32_t days = epoch / (60 * 60 * 24);
     epoch %= (60 * 60 * 24);
@@ -64,6 +65,35 @@ char *convert_time(uint32_t epoch, char *buf)
     epoch  %= 60;
     seconds = epoch;
 
-    sprintf(buf, "%d-%d-%d %d:%d:%d", year, month, days, hours, minutes, seconds);
+    calendar_t new;
+    new.year = year;
+    new.month = month;
+    new.day = days;
+
+    new.hour = hours;
+    new.minute = minutes;
+    new.second = seconds;
+
+    return new;
+}
+
+char *convert_time(uint32_t epoch, char *buf)
+{
+    calendar_t time = time_calendar(epoch);
+    sprintf(buf, "%4d-%2d-%2d %2d:%2d:%2d", time.year, time.month, time.day, time.hour, time.minute, time.second);
     return buf;
+}
+
+uint32_t make_time(uint16_t year, uint8_t month, uint8_t days, uint8_t hours, uint8_t minutes, uint8_t seconds)
+{
+    uint32_t epoch = 0;
+
+    while (year > 1970)
+    {
+        days += days_for_year(year);
+        year--;
+    }
+    printf("%d %d\n", year, days);
+
+    return 10;
 }

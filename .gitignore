@@ -1,4 +1,4 @@
 build/
 qemu-pktlog.pcap
-.vscode/
 os.img
+.vscode/

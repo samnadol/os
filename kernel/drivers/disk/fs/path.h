@@ -5,7 +5,7 @@
 
 #define PATH_INITIAL_CAPACITY 4
 #define PATH_MAX_COMPONENTS 16
-#define PATH_MAX_COMPONENT_LENGTH 32
+#define PATH_MAX_COMPONENT_LENGTH 255
 
 typedef struct {
     char **components;
